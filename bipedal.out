@@ -9291,4 +9291,1652 @@ Iter collection time: 1.0878949165344238
 skill_dynamics train time: 0.3363218307495117
 agent train time: 5.283802509307861
 	 sampling time: 2.516805648803711
-	 filtering_time:
+	 filtering_time: 0.009605884552001953
+	 relabelling time: 0.0005490779876708984
+	 train_time: 2.7566401958465576
+iter count is: 905
+iteration index: 905
+intermediate time: 0.002761363983154297
+Iter collection time: 1.0871264934539795
+skill_dynamics train time: 0.3414328098297119
+agent train time: 5.242945432662964
+	 sampling time: 2.5024209022521973
+	 filtering_time: 0.009533882141113281
+	 relabelling time: 0.0005435943603515625
+	 train_time: 2.7302541732788086
+iter count is: 906
+iteration index: 906
+intermediate time: 0.0026810169219970703
+Iter collection time: 1.100334882736206
+skill_dynamics train time: 0.3424832820892334
+agent train time: 5.328023910522461
+	 sampling time: 2.5175747871398926
+	 filtering_time: 0.009553670883178711
+	 relabelling time: 0.0005471706390380859
+	 train_time: 2.800170421600342
+iter count is: 907
+iteration index: 907
+intermediate time: 0.0031976699829101562
+Iter collection time: 1.100578784942627
+skill_dynamics train time: 0.33556199073791504
+agent train time: 5.351486444473267
+	 sampling time: 2.511009931564331
+	 filtering_time: 0.009609460830688477
+	 relabelling time: 0.000545501708984375
+	 train_time: 2.83013653755188
+iter count is: 908
+iteration index: 908
+intermediate time: 0.0025882720947265625
+Iter collection time: 1.1013193130493164
+skill_dynamics train time: 0.3388962745666504
+agent train time: 5.293100357055664
+	 sampling time: 2.4853591918945312
+	 filtering_time: 0.009443283081054688
+	 relabelling time: 0.0005409717559814453
+	 train_time: 2.7975659370422363
+iter count is: 909
+iteration index: 909
+intermediate time: 0.0026178359985351562
+Iter collection time: 1.0785167217254639
+skill_dynamics train time: 0.3306863307952881
+agent train time: 5.27947735786438
+	 sampling time: 2.480440139770508
+	 filtering_time: 0.009546279907226562
+	 relabelling time: 0.0005350112915039062
+	 train_time: 2.7887725830078125
+iter count is: 910
+iteration index: 910
+intermediate time: 0.0033388137817382812
+Iter collection time: 1.0786967277526855
+skill_dynamics train time: 0.3383603096008301
+agent train time: 5.328261613845825
+	 sampling time: 2.5017027854919434
+	 filtering_time: 0.00956583023071289
+	 relabelling time: 0.0005373954772949219
+	 train_time: 2.8162736892700195
+iter count is: 911
+iteration index: 911
+intermediate time: 0.002632617950439453
+Iter collection time: 1.1069509983062744
+skill_dynamics train time: 0.34160685539245605
+agent train time: 5.335939168930054
+	 sampling time: 2.4959845542907715
+	 filtering_time: 0.009473800659179688
+	 relabelling time: 0.0005366802215576172
+	 train_time: 2.8297643661499023
+iter count is: 912
+iteration index: 912
+intermediate time: 0.0031785964965820312
+Iter collection time: 1.1011252403259277
+skill_dynamics train time: 0.3392806053161621
+agent train time: 5.367297172546387
+	 sampling time: 2.544879913330078
+	 filtering_time: 0.009600400924682617
+	 relabelling time: 0.0005431175231933594
+	 train_time: 2.8120975494384766
+iter count is: 913
+iteration index: 913
+intermediate time: 0.0025899410247802734
+Iter collection time: 1.0883290767669678
+skill_dynamics train time: 0.33901166915893555
+agent train time: 5.390149354934692
+	 sampling time: 2.583162546157837
+	 filtering_time: 0.009804964065551758
+	 relabelling time: 0.0005438327789306641
+	 train_time: 2.7964634895324707
+iter count is: 914
+iteration index: 914
+intermediate time: 0.002732992172241211
+Iter collection time: 1.096219778060913
+skill_dynamics train time: 0.3438112735748291
+agent train time: 5.3383870124816895
+	 sampling time: 2.523437976837158
+	 filtering_time: 0.009895801544189453
+	 relabelling time: 0.0005309581756591797
+	 train_time: 2.8043253421783447
+iter count is: 915
+iteration index: 915
+intermediate time: 0.002671480178833008
+Iter collection time: 1.0763397216796875
+skill_dynamics train time: 0.33940863609313965
+agent train time: 5.318668842315674
+	 sampling time: 2.5017213821411133
+	 filtering_time: 0.00976252555847168
+	 relabelling time: 0.0005328655242919922
+	 train_time: 2.806464433670044
+iter count is: 916
+iteration index: 916
+intermediate time: 0.0033788681030273438
+Iter collection time: 1.0898699760437012
+skill_dynamics train time: 0.33763790130615234
+agent train time: 5.351031303405762
+	 sampling time: 2.5254786014556885
+	 filtering_time: 0.009874105453491211
+	 relabelling time: 0.0005383491516113281
+	 train_time: 2.8149685859680176
+iter count is: 917
+iteration index: 917
+intermediate time: 0.0026383399963378906
+Iter collection time: 1.1038682460784912
+skill_dynamics train time: 0.34992337226867676
+agent train time: 5.359945058822632
+	 sampling time: 2.543029308319092
+	 filtering_time: 0.00998544692993164
+	 relabelling time: 0.0005595684051513672
+	 train_time: 2.8062031269073486
+iter count is: 918
+iteration index: 918
+intermediate time: 0.0026514530181884766
+Iter collection time: 1.1175141334533691
+skill_dynamics train time: 0.3370943069458008
+agent train time: 5.357333660125732
+	 sampling time: 2.519501209259033
+	 filtering_time: 0.009916305541992188
+	 relabelling time: 0.0005457401275634766
+	 train_time: 2.827188491821289
+iter count is: 919
+iteration index: 919
+intermediate time: 0.0032532215118408203
+Iter collection time: 1.1143407821655273
+skill_dynamics train time: 0.3401305675506592
+agent train time: 5.37862753868103
+	 sampling time: 2.519421100616455
+	 filtering_time: 0.00993490219116211
+	 relabelling time: 0.0005342960357666016
+	 train_time: 2.8485605716705322
+iter count is: 920
+iteration index: 920
+intermediate time: 0.002671957015991211
+Iter collection time: 1.0760846138000488
+skill_dynamics train time: 0.33364272117614746
+agent train time: 5.283528804779053
+	 sampling time: 2.502441644668579
+	 filtering_time: 0.009938240051269531
+	 relabelling time: 0.0005300045013427734
+	 train_time: 2.770439863204956
+iter count is: 921
+iteration index: 921
+intermediate time: 0.0026650428771972656
+Iter collection time: 1.103424310684204
+skill_dynamics train time: 0.3420681953430176
+agent train time: 5.340838670730591
+	 sampling time: 2.513627052307129
+	 filtering_time: 0.009987592697143555
+	 relabelling time: 0.0005428791046142578
+	 train_time: 2.816505193710327
+iter count is: 922
+iteration index: 922
+intermediate time: 0.0026559829711914062
+Iter collection time: 1.1218833923339844
+skill_dynamics train time: 0.33948636054992676
+agent train time: 5.3153533935546875
+	 sampling time: 2.513256311416626
+	 filtering_time: 0.009898900985717773
+	 relabelling time: 0.0005388259887695312
+	 train_time: 2.7914862632751465
+iter count is: 923
+iteration index: 923
+intermediate time: 0.002595186233520508
+Iter collection time: 1.0994293689727783
+skill_dynamics train time: 0.33701372146606445
+agent train time: 5.2932960987091064
+	 sampling time: 2.5041000843048096
+	 filtering_time: 0.009963035583496094
+	 relabelling time: 0.0005390644073486328
+	 train_time: 2.778512477874756
+iter count is: 924
+iteration index: 924
+intermediate time: 0.0026171207427978516
+Iter collection time: 1.0959343910217285
+skill_dynamics train time: 0.3433060646057129
+agent train time: 5.310082912445068
+	 sampling time: 2.511502742767334
+	 filtering_time: 0.010004281997680664
+	 relabelling time: 0.0005426406860351562
+	 train_time: 2.7878546714782715
+iter count is: 925
+iteration index: 925
+intermediate time: 0.0025796890258789062
+Iter collection time: 1.0907249450683594
+skill_dynamics train time: 0.33928966522216797
+agent train time: 5.306640625
+	 sampling time: 2.5120606422424316
+	 filtering_time: 0.009899616241455078
+	 relabelling time: 0.00055694580078125
+	 train_time: 2.783933162689209
+iter count is: 926
+iteration index: 926
+intermediate time: 0.002588987350463867
+Iter collection time: 1.0876448154449463
+skill_dynamics train time: 0.3346521854400635
+agent train time: 5.3276753425598145
+	 sampling time: 2.5045359134674072
+	 filtering_time: 0.009864568710327148
+	 relabelling time: 0.0005328655242919922
+	 train_time: 2.812574863433838
+iter count is: 927
+iteration index: 927
+intermediate time: 0.002687692642211914
+Iter collection time: 1.101158618927002
+skill_dynamics train time: 0.33826684951782227
+agent train time: 5.373703718185425
+	 sampling time: 2.592503786087036
+	 filtering_time: 0.010101795196533203
+	 relabelling time: 0.0005445480346679688
+	 train_time: 2.7703800201416016/home/quessy/miniconda3/envs/dads-env/lib/python3.6/site-packages/gym/logger.py:30: UserWarning: [33mWARN: gym.spaces.Box autodetected dtype as <class 'numpy.float32'>. Please provide explicit dtype.[0m
+  warnings.warn(colorize('%s: %s'%('WARN', msg % args), 'yellow'))
+/home/quessy/miniconda3/envs/dads-env/lib/python3.6/site-packages/gym/logger.py:30: UserWarning: [33mWARN: gym.spaces.Box autodetected dtype as <class 'numpy.float32'>. Please provide explicit dtype.[0m
+  warnings.warn(colorize('%s: %s'%('WARN', msg % args), 'yellow'))
+/home/quessy/miniconda3/envs/dads-env/lib/python3.6/site-packages/gym/logger.py:30: UserWarning: [33mWARN: gym.spaces.Box autodetected dtype as <class 'numpy.float32'>. Please provide explicit dtype.[0m
+  warnings.warn(colorize('%s: %s'%('WARN', msg % args), 'yellow'))
+I0909 10:33:33.095507 140283184944960 common.py:998] Saved checkpoint: /home/quessy/Dev/dads/log_dir/bipedal_walker/models/agent/ckpt-950
+I0909 10:33:33.101292 140283184944960 common.py:998] Saved checkpoint: /home/quessy/Dev/dads/log_dir/bipedal_walker/models/policy/ckpt-950
+I0909 10:33:33.133774 140283184944960 common.py:998] Saved checkpoint: /home/quessy/Dev/dads/log_dir/bipedal_walker/models/replay_buffer/ckpt-950
+
+iter count is: 928
+iteration index: 928
+intermediate time: 0.0030372142791748047
+Iter collection time: 1.088317632675171
+skill_dynamics train time: 0.3393056392669678
+agent train time: 5.295573472976685
+	 sampling time: 2.468769073486328
+	 filtering_time: 0.009754419326782227
+	 relabelling time: 0.0005350112915039062
+	 train_time: 2.8163366317749023
+iter count is: 929
+iteration index: 929
+intermediate time: 0.0026252269744873047
+Iter collection time: 1.0667212009429932
+skill_dynamics train time: 0.3315751552581787
+agent train time: 5.284285545349121
+	 sampling time: 2.460463047027588
+	 filtering_time: 0.009736299514770508
+	 relabelling time: 0.0005345344543457031
+	 train_time: 2.8133738040924072
+iter count is: 930
+iteration index: 930
+intermediate time: 0.0026655197143554688
+Iter collection time: 1.0681614875793457
+skill_dynamics train time: 0.3347206115722656
+agent train time: 5.318313121795654
+	 sampling time: 2.477220058441162
+	 filtering_time: 0.009758949279785156
+	 relabelling time: 0.0005345344543457031
+	 train_time: 2.830617904663086
+iter count is: 931
+iteration index: 931
+intermediate time: 0.0026569366455078125
+Iter collection time: 1.1074299812316895
+skill_dynamics train time: 0.34589219093322754
+agent train time: 5.281430244445801
+	 sampling time: 2.489604949951172
+	 filtering_time: 0.009773731231689453
+	 relabelling time: 0.0005433559417724609
+	 train_time: 2.7813379764556885
+iter count is: 932
+iteration index: 932
+intermediate time: 0.0027205944061279297
+Iter collection time: 1.1019599437713623
+skill_dynamics train time: 0.3305699825286865
+agent train time: 5.354233264923096
+	 sampling time: 2.501610279083252
+	 filtering_time: 0.009854555130004883
+	 relabelling time: 0.0005443096160888672
+	 train_time: 2.842036724090576
+iter count is: 933
+iteration index: 933
+intermediate time: 0.002677440643310547
+Iter collection time: 1.1026146411895752
+skill_dynamics train time: 0.3398919105529785
+agent train time: 5.280669450759888
+	 sampling time: 2.4786200523376465
+	 filtering_time: 0.009813070297241211
+	 relabelling time: 0.0005435943603515625
+	 train_time: 2.7915172576904297
+iter count is: 934
+iteration index: 934
+intermediate time: 0.0026688575744628906
+Iter collection time: 1.0824894905090332
+skill_dynamics train time: 0.33973026275634766
+agent train time: 5.2990641593933105
+	 sampling time: 2.487182855606079
+	 filtering_time: 0.009833097457885742
+	 relabelling time: 0.0005385875701904297
+	 train_time: 2.801331043243408
+iter count is: 935
+iteration index: 935
+intermediate time: 0.002634763717651367
+Iter collection time: 1.0705676078796387
+skill_dynamics train time: 0.34259676933288574
+agent train time: 5.292322158813477
+	 sampling time: 2.518890142440796
+	 filtering_time: 0.00988626480102539
+	 relabelling time: 0.0005490779876708984
+	 train_time: 2.762821912765503
+iter count is: 936
+iteration index: 936
+intermediate time: 0.0025899410247802734
+Iter collection time: 1.0688912868499756
+skill_dynamics train time: 0.3301656246185303
+agent train time: 5.342360019683838
+	 sampling time: 2.4892568588256836
+	 filtering_time: 0.009702920913696289
+	 relabelling time: 0.0005211830139160156
+	 train_time: 2.84271502494812
+iter count is: 937
+iteration index: 937
+intermediate time: 0.0026254653930664062
+Iter collection time: 1.077906847000122
+skill_dynamics train time: 0.3346436023712158
+agent train time: 5.310413360595703
+	 sampling time: 2.478241443634033
+	 filtering_time: 0.009843826293945312
+	 relabelling time: 0.0005347728729248047
+	 train_time: 2.821620225906372
+iter count is: 938
+iteration index: 938
+intermediate time: 0.0026688575744628906
+Iter collection time: 1.1032791137695312
+skill_dynamics train time: 0.3346869945526123
+agent train time: 5.275976181030273
+	 sampling time: 2.4706785678863525
+	 filtering_time: 0.009800195693969727
+	 relabelling time: 0.0005192756652832031
+	 train_time: 2.7948079109191895
+iter count is: 939
+iteration index: 939
+intermediate time: 0.0026693344116210938
+Iter collection time: 1.1019916534423828
+skill_dynamics train time: 0.3420884609222412
+agent train time: 5.3433310985565186
+	 sampling time: 2.526796340942383
+	 filtering_time: 0.009893655776977539
+	 relabelling time: 0.0005292892456054688
+	 train_time: 2.805934429168701
+iter count is: 940
+iteration index: 940
+intermediate time: 0.002615690231323242
+Iter collection time: 1.1048250198364258
+skill_dynamics train time: 0.3501160144805908
+agent train time: 5.3806538581848145
+	 sampling time: 2.5646724700927734
+	 filtering_time: 0.009932994842529297
+	 relabelling time: 0.0005376338958740234
+	 train_time: 2.8053395748138428
+iter count is: 941
+iteration index: 941
+intermediate time: 0.002630472183227539
+Iter collection time: 1.082815170288086
+skill_dynamics train time: 0.34331393241882324
+agent train time: 5.453552484512329
+	 sampling time: 2.6053712368011475
+	 filtering_time: 0.009952545166015625
+	 relabelling time: 0.0005393028259277344
+	 train_time: 2.837517499923706
+iter count is: 942
+iteration index: 942
+intermediate time: 0.0026178359985351562
+Iter collection time: 1.1093111038208008
+skill_dynamics train time: 0.3379361629486084
+agent train time: 5.37387490272522
+	 sampling time: 2.528254270553589
+	 filtering_time: 0.009888410568237305
+	 relabelling time: 0.0005540847778320312
+	 train_time: 2.8349990844726562
+iter count is: 943
+iteration index: 943
+intermediate time: 0.002671480178833008
+Iter collection time: 1.1062633991241455
+skill_dynamics train time: 0.34533047676086426
+agent train time: 5.3767406940460205
+	 sampling time: 2.5527989864349365
+	 filtering_time: 0.009967327117919922
+	 relabelling time: 0.0005407333374023438
+	 train_time: 2.81325101852417
+iter count is: 944
+iteration index: 944
+intermediate time: 0.0026171207427978516
+Iter collection time: 1.077805757522583
+skill_dynamics train time: 0.3424067497253418
+agent train time: 5.27483057975769
+	 sampling time: 2.4708945751190186
+	 filtering_time: 0.0098724365234375
+	 relabelling time: 0.0005362033843994141
+	 train_time: 2.7933542728424072
+iter count is: 945
+iteration index: 945
+intermediate time: 0.0026814937591552734
+Iter collection time: 1.0705976486206055
+skill_dynamics train time: 0.3352935314178467
+agent train time: 5.263535976409912
+	 sampling time: 2.475248098373413
+	 filtering_time: 0.009900808334350586
+	 relabelling time: 0.0005269050598144531
+	 train_time: 2.777672052383423
+iter count is: 946
+iteration index: 946
+intermediate time: 0.0026307106018066406
+Iter collection time: 1.1114988327026367
+skill_dynamics train time: 0.34502148628234863
+agent train time: 5.384301424026489
+	 sampling time: 2.507885217666626
+	 filtering_time: 0.009896993637084961
+	 relabelling time: 0.0005292892456054688
+	 train_time: 2.865818738937378
+iter count is: 947
+iteration index: 947
+intermediate time: 0.002622842788696289
+Iter collection time: 1.074265956878662
+skill_dynamics train time: 0.3325965404510498
+agent train time: 5.268938302993774
+	 sampling time: 2.463944435119629
+	 filtering_time: 0.009737491607666016
+	 relabelling time: 0.0005273818969726562
+	 train_time: 2.7945547103881836
+iter count is: 948
+iteration index: 948
+intermediate time: 0.002646923065185547
+Iter collection time: 1.0944888591766357
+skill_dynamics train time: 0.33199334144592285
+agent train time: 5.2246317863464355
+	 sampling time: 2.4574387073516846
+	 filtering_time: 0.009820222854614258
+	 relabelling time: 0.0005240440368652344
+	 train_time: 2.7566750049591064
+iter count is: 949
+iteration index: 949
+intermediate time: 0.002608776092529297
+Iter collection time: 1.0957670211791992
+skill_dynamics train time: 0.343609094619751
+agent train time: 5.256620645523071
+	 sampling time: 2.476409435272217
+	 filtering_time: 0.009822845458984375
+	 relabelling time: 0.0005331039428710938
+	 train_time: 2.7696850299835205
+iter count is: 950
+iteration index: 950
+Saving stuff
+intermediate time: 0.24261760711669922
+Iter collection time: 1.1025059223175049
+skill_dynamics train time: 0.3323633670806885
+agent train time: 5.264301061630249
+	 sampling time: 2.481081247329712
+	 filtering_time: 0.00978541374206543
+	 relabelling time: 0.0005373954772949219
+	 train_time: 2.7727317810058594
+iter count is: 951
+iteration index: 951
+intermediate time: 0.0027074813842773438
+Iter collection time: 1.0742065906524658
+skill_dynamics train time: 0.32860302925109863
+agent train time: 5.347837924957275
+	 sampling time: 2.505309581756592
+	 filtering_time: 0.009863853454589844
+	 relabelling time: 0.0005400180816650391
+	 train_time: 2.8319404125213623
+iter count is: 952
+iteration index: 952
+intermediate time: 0.0026350021362304688
+Iter collection time: 1.081233263015747
+skill_dynamics train time: 0.33751487731933594
+agent train time: 5.284851312637329
+	 sampling time: 2.5123841762542725
+	 filtering_time: 0.009982585906982422
+	 relabelling time: 0.0005440711975097656
+	 train_time: 2.761767625808716
+iter count is: 953
+iteration index: 953
+intermediate time: 0.0026743412017822266
+Iter collection time: 1.1082961559295654
+skill_dynamics train time: 0.3464365005493164
+agent train time: 5.305611848831177
+	 sampling time: 2.5130224227905273
+	 filtering_time: 0.009851455688476562
+	 relabelling time: 0.0005521774291992188
+	 train_time: 2.7819981575012207
+iter count is: 954
+iteration index: 954
+intermediate time: 0.0026254653930664062
+Iter collection time: 1.0745530128479004
+skill_dynamics train time: 0.3342428207397461
+agent train time: 5.385951519012451
+	 sampling time: 2.5178439617156982
+	 filtering_time: 0.0099029541015625
+	 relabelling time: 0.00054931640625
+	 train_time: 2.8574719429016113
+iter count is: 955
+iteration index: 955
+intermediate time: 0.002646207809448242
+Iter collection time: 1.1190886497497559
+skill_dynamics train time: 0.33854150772094727
+agent train time: 5.461565256118774
+	 sampling time: 2.6048340797424316
+	 filtering_time: 0.009840011596679688
+	 relabelling time: 0.0005507469177246094
+	 train_time: 2.846163749694824
+iter count is: 956
+iteration index: 956
+intermediate time: 0.002696514129638672
+Iter collection time: 1.0815632343292236
+skill_dynamics train time: 0.3356587886810303
+agent train time: 5.33115291595459
+	 sampling time: 2.512754440307617
+	 filtering_time: 0.009883642196655273
+	 relabelling time: 0.0005304813385009766
+	 train_time: 2.807807683944702
+iter count is: 957
+iteration index: 957
+intermediate time: 0.0026726722717285156
+Iter collection time: 1.1060211658477783
+skill_dynamics train time: 0.3381650447845459
+agent train time: 5.32663369178772
+	 sampling time: 2.511040210723877
+	 filtering_time: 0.009725570678710938
+	 relabelling time: 0.0005373954772949219
+	 train_time: 2.805143117904663
+iter count is: 958
+iteration index: 958
+intermediate time: 0.0026428699493408203
+Iter collection time: 1.0807437896728516
+skill_dynamics train time: 0.34504175186157227
+agent train time: 5.340507745742798
+	 sampling time: 2.5016489028930664
+	 filtering_time: 0.009830236434936523
+	 relabelling time: 0.0005426406860351562
+	 train_time: 2.8282968997955322
+iter count is: 959
+iteration index: 959
+intermediate time: 0.003234386444091797
+Iter collection time: 1.0922417640686035
+skill_dynamics train time: 0.34099888801574707
+agent train time: 5.3260338306427
+	 sampling time: 2.5024545192718506
+	 filtering_time: 0.009832620620727539
+	 relabelling time: 0.0005335807800292969
+	 train_time: 2.8130249977111816
+iter count is: 960
+iteration index: 960
+intermediate time: 0.002606630325317383
+Iter collection time: 1.0844666957855225
+skill_dynamics train time: 0.34053826332092285
+agent train time: 5.322234153747559
+	 sampling time: 2.4949862957000732
+	 filtering_time: 0.009834527969360352
+	 relabelling time: 0.0005357265472412109
+	 train_time: 2.816702127456665
+iter count is: 961
+iteration index: 961
+intermediate time: 0.0027048587799072266
+Iter collection time: 1.0871262550354004
+skill_dynamics train time: 0.3369567394256592
+agent train time: 5.31545877456665
+	 sampling time: 2.5100605487823486
+	 filtering_time: 0.009810924530029297
+	 relabelling time: 0.0005331039428710938
+	 train_time: 2.7948660850524902
+iter count is: 962
+iteration index: 962
+intermediate time: 0.0026655197143554688
+Iter collection time: 1.0996065139770508
+skill_dynamics train time: 0.3367300033569336
+agent train time: 5.334494113922119
+	 sampling time: 2.5290257930755615
+	 filtering_time: 0.009825944900512695
+	 relabelling time: 0.0005488395690917969
+	 train_time: 2.794910430908203
+iter count is: 963
+iteration index: 963
+intermediate time: 0.0026268959045410156
+Iter collection time: 1.1072349548339844
+skill_dynamics train time: 0.3416144847869873
+agent train time: 5.324106216430664
+	 sampling time: 2.4954564571380615
+	 filtering_time: 0.009835481643676758
+	 relabelling time: 0.0005280971527099609
+	 train_time: 2.81809663772583
+iter count is: 964
+iteration index: 964
+intermediate time: 0.002597332000732422
+Iter collection time: 1.1029880046844482
+skill_dynamics train time: 0.33861541748046875
+agent train time: 5.308877944946289
+	 sampling time: 2.5067086219787598
+	 filtering_time: 0.009806632995605469
+	 relabelling time: 0.0005373954772949219
+	 train_time: 2.7916336059570312
+iter count is: 965
+iteration index: 965
+intermediate time: 0.002691984176635742
+Iter collection time: 1.0930061340332031
+skill_dynamics train time: 0.3379018306732178
+agent train time: 5.314859390258789
+	 sampling time: 2.516254186630249
+	 filtering_time: 0.009859561920166016
+	 relabelling time: 0.0005385875701904297
+	 train_time: 2.7880327701568604
+iter count is: 966
+iteration index: 966
+intermediate time: 0.0026788711547851562
+Iter collection time: 1.1055958271026611
+skill_dynamics train time: 0.34720849990844727
+agent train time: 5.410512208938599
+	 sampling time: 2.531480073928833
+	 filtering_time: 0.009835004806518555
+	 relabelling time: 0.0005567073822021484
+	 train_time: 2.8684608936309814
+iter count is: 967
+iteration index: 967
+intermediate time: 0.0026161670684814453
+Iter collection time: 1.0756425857543945
+skill_dynamics train time: 0.3391692638397217
+agent train time: 5.374409198760986
+	 sampling time: 2.503973960876465
+	 filtering_time: 0.009989261627197266
+	 relabelling time: 0.0005500316619873047
+	 train_time: 2.8597116470336914
+iter count is: 968
+iteration index: 968
+intermediate time: 0.0026726722717285156
+Iter collection time: 1.0889275074005127
+skill_dynamics train time: 0.34071803092956543
+agent train time: 5.34044885635376
+	 sampling time: 2.5239336490631104
+	 filtering_time: 0.00990152359008789
+	 relabelling time: 0.0005481243133544922
+	 train_time: 2.805882453918457
+iter count is: 969
+iteration index: 969
+intermediate time: 0.0026569366455078125
+Iter collection time: 1.1292102336883545
+skill_dynamics train time: 0.3396933078765869
+agent train time: 5.424756288528442
+	 sampling time: 2.5961406230926514
+	 filtering_time: 0.009874343872070312
+	 relabelling time: 0.0005373954772949219
+	 train_time: 2.8180203437805176
+iter count is: 970
+iteration index: 970
+intermediate time: 0.0027494430541992188
+Iter collection time: 1.1040408611297607
+skill_dynamics train time: 0.33950066566467285
+agent train time: 5.316819667816162
+	 sampling time: 2.5039854049682617
+	 filtering_time: 0.010006427764892578
+	 relabelling time: 0.0005486011505126953
+	 train_time: 2.8021023273468018
+iter count is: 971
+iteration index: 971
+intermediate time: 0.0026814937591552734
+Iter collection time: 1.1130967140197754
+skill_dynamics train time: 0.33701062202453613
+agent train time: 5.307219505310059
+	 sampling time: 2.5152485370635986
+	 filtering_time: 0.009870767593383789
+	 relabelling time: 0.0005319118499755859
+	 train_time: 2.781388521194458
+iter count is: 972
+iteration index: 972
+intermediate time: 0.0026619434356689453
+Iter collection time: 1.0886590480804443
+skill_dynamics train time: 0.33912205696105957
+agent train time: 5.309438467025757
+	 sampling time: 2.5075011253356934
+	 filtering_time: 0.009956836700439453
+	 relabelling time: 0.000545501708984375
+	 train_time: 2.791262149810791
+iter count is: 973
+iteration index: 973
+intermediate time: 0.0026595592498779297
+Iter collection time: 1.082474708557129
+skill_dynamics train time: 0.34723424911499023
+agent train time: 5.358861684799194
+	 sampling time: 2.5391554832458496
+	 filtering_time: 0.009895801544189453
+	 relabelling time: 0.0005469322204589844
+	 train_time: 2.809086322784424
+iter count is: 974
+iteration index: 974
+intermediate time: 0.002719402313232422
+Iter collection time: 1.0901763439178467
+skill_dynamics train time: 0.34531283378601074
+agent train time: 5.34242582321167
+	 sampling time: 2.523540735244751
+	 filtering_time: 0.009953022003173828
+	 relabelling time: 0.0005450248718261719
+	 train_time: 2.8081154823303223
+iter count is: 975
+iteration index: 975
+intermediate time: 0.002625703811645508
+Iter collection time: 1.0922400951385498
+skill_dynamics train time: 0.3445010185241699
+agent train time: 5.292645454406738
+	 sampling time: 2.5169384479522705
+	 filtering_time: 0.009877920150756836
+	 relabelling time: 0.0005307197570800781
+	 train_time: 2.7651259899139404
+iter count is: 976
+iteration index: 976
+intermediate time: 0.0026602745056152344
+Iter collection time: 1.0968515872955322
+skill_dynamics train time: 0.33998870849609375
+agent train time: 5.339251756668091
+	 sampling time: 2.525238275527954
+	 filtering_time: 0.009870290756225586
+	 relabelling time: 0.0005373954772949219
+	 train_time: 2.803420066833496
+iter count is: 977
+iteration index: 977
+intermediate time: 0.0028688907623291016
+Iter collection time: 1.1006128787994385
+skill_dynamics train time: 0.348452091217041
+agent train time: 5.268571138381958
+	 sampling time: 2.513728380203247
+	 filtering_time: 0.009923458099365234
+	 relabelling time: 0.0005505084991455078
+	 train_time: 2.7441840171813965
+iter count is: 978
+iteration index: 978
+intermediate time: 0.0027322769165039062
+Iter collection time: 1.0880908966064453
+skill_dynamics train time: 0.3412930965423584
+agent train time: 5.359501123428345
+	 sampling time: 2.509770393371582
+	 filtering_time: 0.009780645370483398
+	 relabelling time: 0.000530242919921875
+	 train_time: 2.8392412662506104
+iter count is: 979
+iteration index: 979
+intermediate time: 0.002653360366821289
+Iter collection time: 1.108100175857544
+skill_dynamics train time: 0.34068942070007324
+agent train time: 5.341055870056152
+	 sampling time: 2.5128097534179688
+	 filtering_time: 0.00994110107421875
+	 relabelling time: 0.0005385875701904297
+	 train_time: 2.8175811767578125
+iter count is: 980
+iteration index: 980
+intermediate time: 0.002655506134033203
+Iter collection time: 1.0918500423431396
+skill_dynamics train time: 0.33866310119628906
+agent train time: 5.377100229263306
+	 sampling time: 2.5332558155059814
+	 filtering_time: 0.009871959686279297
+	 relabelling time: 0.0005383491516113281
+	 train_time: 2.83325457572937
+iter count is: 981
+iteration index: 981
+intermediate time: 0.002950906753540039
+Iter collection time: 1.084110975265503
+skill_dynamics train time: 0.34201478958129883
+agent train time: 5.355410575866699
+	 sampling time: 2.528024911880493
+	 filtering_time: 0.009921550750732422
+	 relabelling time: 0.0005328655242919922
+	 train_time: 2.8167524337768555
+iter count is: 982
+iteration index: 982
+intermediate time: 0.002624988555908203
+Iter collection time: 1.089087724685669
+skill_dynamics train time: 0.34587955474853516
+agent train time: 5.381845951080322
+	 sampling time: 2.522230625152588
+	 filtering_time: 0.009837150573730469
+	 relabelling time: 0.0005445480346679688
+	 train_time: 2.8490469455718994
+iter count is: 983
+iteration index: 983
+intermediate time: 0.002654552459716797
+Iter collection time: 1.0975275039672852
+skill_dynamics train time: 0.34227538108825684
+agent train time: 5.316128969192505
+	 sampling time: 2.5175204277038574
+	 filtering_time: 0.009885787963867188
+	 relabelling time: 0.000537872314453125
+	 train_time: 2.7879974842071533
+iter count is: 984
+iteration index: 984
+intermediate time: 0.0026862621307373047
+Iter collection time: 1.0874097347259521
+skill_dynamics train time: 0.41768312454223633
+agent train time: 5.3077826499938965
+	 sampling time: 2.5373706817626953
+	 filtering_time: 0.00986027717590332
+	 relabelling time: 0.0005350112915039062
+	 train_time: 2.759838581085205
+iter count is: 985
+iteration index: 985
+intermediate time: 0.002635955810546875
+Iter collection time: 1.1011371612548828
+skill_dynamics train time: 0.33842039108276367
+agent train time: 5.387533187866211
+	 sampling time: 2.506821870803833
+	 filtering_time: 0.009903430938720703
+	 relabelling time: 0.0005345344543457031
+	 train_time: 2.870089054107666
+iter count is: 986
+iteration index: 986
+intermediate time: 0.0026597976684570312
+Iter collection time: 1.1041409969329834
+skill_dynamics train time: 0.3410682678222656
+agent train time: 5.32461953163147
+	 sampling time: 2.510956048965454
+	 filtering_time: 0.009926080703735352
+	 relabelling time: 0.0005409717559814453
+	 train_time: 2.8030192852020264
+iter count is: 987
+iteration index: 987
+intermediate time: 0.002672910690307617
+Iter collection time: 1.0996131896972656
+skill_dynamics train time: 0.34316515922546387
+agent train time: 5.34225058555603
+	 sampling time: 2.524967908859253
+	 filtering_time: 0.009824514389038086
+	 relabelling time: 0.0005407333374023438
+	 train_time: 2.806729555130005
+iter count is: 988
+iteration index: 988
+intermediate time: 0.002701282501220703
+Iter collection time: 1.1052196025848389
+skill_dynamics train time: 0.3378102779388428
+agent train time: 5.32476019859314
+	 sampling time: 2.516080856323242
+	 filtering_time: 0.009929180145263672
+	 relabelling time: 0.0005331039428710938
+	 train_time: 2.79803204536438
+iter count is: 989
+iteration index: 989
+intermediate time: 0.0026297569274902344
+Iter collection time: 1.1066522598266602
+skill_dynamics train time: 0.3427751064300537
+agent train time: 5.371887445449829
+	 sampling time: 2.5199179649353027
+	 filtering_time: 0.009964942932128906
+	 relabelling time: 0.0005481243133544922
+	 train_time: 2.8412625789642334
+iter count is: 990
+iteration index: 990
+intermediate time: 0.002777576446533203
+Iter collection time: 1.1273410320281982
+skill_dynamics train time: 0.34322595596313477
+agent train time: 5.369452714920044
+	 sampling time: 2.523219347000122
+	 filtering_time: 0.009883880615234375
+	 relabelling time: 0.0005371570587158203
+	 train_time: 2.835638999938965
+iter count is: 991
+iteration index: 991
+intermediate time: 0.0026459693908691406
+Iter collection time: 1.0943849086761475
+skill_dynamics train time: 0.33859992027282715
+agent train time: 5.374729633331299
+	 sampling time: 2.5271730422973633
+	 filtering_time: 0.009847164154052734
+	 relabelling time: 0.0005376338958740234
+	 train_time: 2.836988687515259
+iter count is: 992
+iteration index: 992
+intermediate time: 0.002644062042236328
+Iter collection time: 1.0861949920654297
+skill_dynamics train time: 0.34361886978149414
+agent train time: 5.328884124755859
+	 sampling time: 2.5129683017730713
+	 filtering_time: 0.009879589080810547
+	 relabelling time: 0.0005314350128173828
+	 train_time: 2.8053295612335205
+iter count is: 993
+iteration index: 993
+intermediate time: 0.003251791000366211
+Iter collection time: 1.1128807067871094
+skill_dynamics train time: 0.3400132656097412
+agent train time: 5.362864255905151
+	 sampling time: 2.5044808387756348
+	 filtering_time: 0.009864091873168945
+	 relabelling time: 0.000537872314453125
+	 train_time: 2.8478074073791504
+iter count is: 994
+iteration index: 994
+intermediate time: 0.0026695728302001953
+Iter collection time: 1.1666228771209717
+skill_dynamics train time: 0.33753466606140137
+agent train time: 5.395127773284912
+	 sampling time: 2.513953685760498
+	 filtering_time: 0.009945154190063477
+	 relabelling time: 0.0005376338958740234
+	 train_time: 2.870518684387207
+iter count is: 995
+iteration index: 995
+intermediate time: 0.002679586410522461
+Iter collection time: 1.079310655593872
+skill_dynamics train time: 0.3419961929321289
+agent train time: 5.30786657333374
+	 sampling time: 2.520709276199341
+	 filtering_time: 0.009958982467651367
+	 relabelling time: 0.0005400180816650391
+	 train_time: 2.776484489440918
+iter count is: 996
+iteration index: 996
+intermediate time: 0.0027112960815429688
+Iter collection time: 1.1011199951171875
+skill_dynamics train time: 0.33953332901000977
+agent train time: 5.423601388931274
+	 sampling time: 2.536585569381714
+	 filtering_time: 0.009984493255615234
+	 relabelling time: 0.0005352497100830078
+	 train_time: 2.8763256072998047
+iter count is: 997
+iteration index: 997
+intermediate time: 0.0027031898498535156
+Iter collection time: 1.0972630977630615
+skill_dynamics train time: 0.3466329574584961
+agent train time: 5.348322868347168
+	 sampling time: 2.5181541442871094
+	 filtering_time:I0909 10:39:12.656436 140283184944960 common.py:998] Saved checkpoint: /home/quessy/Dev/dads/log_dir/bipedal_walker/models/agent/ckpt-1000
+I0909 10:39:12.662512 140283184944960 common.py:998] Saved checkpoint: /home/quessy/Dev/dads/log_dir/bipedal_walker/models/policy/ckpt-1000
+I0909 10:39:12.685544 140283184944960 common.py:998] Saved checkpoint: /home/quessy/Dev/dads/log_dir/bipedal_walker/models/replay_buffer/ckpt-1000
+ 0.009955644607543945
+	 relabelling time: 0.0005464553833007812
+	 train_time: 2.819478750228882
+iter count is: 998
+iteration index: 998
+intermediate time: 0.0026955604553222656
+Iter collection time: 1.0980870723724365
+skill_dynamics train time: 0.3391909599304199
+agent train time: 5.399376392364502
+	 sampling time: 2.6156153678894043
+	 filtering_time: 0.009857654571533203
+	 relabelling time: 0.0005536079406738281
+	 train_time: 2.773164749145508
+iter count is: 999
+iteration index: 999
+intermediate time: 0.0026886463165283203
+Iter collection time: 1.0848355293273926
+skill_dynamics train time: 0.3417692184448242
+agent train time: 5.333568334579468
+	 sampling time: 2.525059223175049
+	 filtering_time: 0.00977778434753418
+	 relabelling time: 0.000537872314453125
+	 train_time: 2.7980196475982666
+iter count is: 1000
+iteration index: 1000
+Saving stuff
+intermediate time: 0.23217487335205078
+Iter collection time: 1.1001360416412354
+skill_dynamics train time: 0.34362149238586426
+agent train time: 5.314274311065674
+	 sampling time: 2.5345606803894043
+	 filtering_time: 0.009842157363891602
+	 relabelling time: 0.0005326271057128906
+	 train_time: 2.7691588401794434
+Skill: [-0.45571563  0.76291799]
+Skill: [ 0.71085084 -0.04040585]
+Skill: [-0.46948877 -0.0545687 ]
+iter count is: 1001
+iteration index: 1001
+intermediate time: 12.877319812774658
+Iter collection time: 1.1134252548217773
+skill_dynamics train time: 0.3379383087158203
+agent train time: 5.36211633682251
+	 sampling time: 2.5510811805725098
+	 filtering_time: 0.009685277938842773
+	 relabelling time: 0.0005357265472412109
+	 train_time: 2.800485610961914
+iter count is: 1002
+iteration index: 1002
+intermediate time: 0.002974271774291992
+Iter collection time: 1.0855259895324707
+skill_dynamics train time: 0.3396875858306885
+agent train time: 5.312232971191406
+	 sampling time: 2.516883134841919
+	 filtering_time: 0.00975179672241211
+	 relabelling time: 0.0005309581756591797
+	 train_time: 2.784881114959717
+iter count is: 1003
+iteration index: 1003
+intermediate time: 0.002652406692504883
+Iter collection time: 1.1002004146575928
+skill_dynamics train time: 0.3372347354888916
+agent train time: 5.356548070907593
+	 sampling time: 2.5913918018341064
+	 filtering_time: 0.009778738021850586
+	 relabelling time: 0.0005376338958740234
+	 train_time: 2.7546582221984863
+iter count is: 1004
+iteration index: 1004
+intermediate time: 0.0026934146881103516
+Iter collection time: 1.0853636264801025
+skill_dynamics train time: 0.3386046886444092
+agent train time: 5.316708326339722
+	 sampling time: 2.49601149559021
+	 filtering_time: 0.010002613067626953
+	 relabelling time: 0.0005495548248291016
+	 train_time: 2.8099560737609863
+iter count is: 1005
+iteration index: 1005
+intermediate time: 0.0026552677154541016
+Iter collection time: 1.0948290824890137
+skill_dynamics train time: 0.3397793769836426
+agent train time: 5.316117525100708
+	 sampling time: 2.4999701976776123
+	 filtering_time: 0.010031461715698242
+	 relabelling time: 0.0005505084991455078
+	 train_time: 2.8053951263427734
+iter count is: 1006
+iteration index: 1006
+intermediate time: 0.002668142318725586
+Iter collection time: 1.0979042053222656
+skill_dynamics train time: 0.3496377468109131
+agent train time: 5.264178276062012
+	 sampling time: 2.5062718391418457
+	 filtering_time: 0.009938478469848633
+	 relabelling time: 0.0005452632904052734
+	 train_time: 2.7472426891326904
+iter count is: 1007
+iteration index: 1007
+intermediate time: 0.0032401084899902344
+Iter collection time: 1.097193717956543
+skill_dynamics train time: 0.33995532989501953
+agent train time: 5.311489105224609
+	 sampling time: 2.512518882751465
+	 filtering_time: 0.010023117065429688
+	 relabelling time: 0.0005431175231933594
+	 train_time: 2.788213014602661
+iter count is: 1008
+iteration index: 1008
+intermediate time: 0.0027124881744384766
+Iter collection time: 1.0855193138122559
+skill_dynamics train time: 0.33866357803344727
+agent train time: 5.3065712451934814
+	 sampling time: 2.4980597496032715
+	 filtering_time: 0.009875297546386719
+	 relabelling time: 0.0005204677581787109
+	 train_time: 2.7979419231414795
+iter count is: 1009
+iteration index: 1009
+intermediate time: 0.0027008056640625
+Iter collection time: 1.0831151008605957
+skill_dynamics train time: 0.3399043083190918
+agent train time: 5.352077484130859
+	 sampling time: 2.510852575302124
+	 filtering_time: 0.009948015213012695
+	 relabelling time: 0.000537872314453125
+	 train_time: 2.8305349349975586
+iter count is: 1010
+iteration index: 1010
+intermediate time: 0.0026557445526123047
+Iter collection time: 1.1154899597167969
+skill_dynamics train time: 0.3367445468902588
+agent train time: 5.2896623611450195
+	 sampling time: 2.49880313873291
+	 filtering_time: 0.009894371032714844
+	 relabelling time: 0.0005466938018798828
+	 train_time: 2.78023362159729
+iter count is: 1011
+iteration index: 1011
+intermediate time: 0.0025446414947509766
+Iter collection time: 1.1081507205963135
+skill_dynamics train time: 0.3417243957519531
+agent train time: 5.2833333015441895
+	 sampling time: 2.499558687210083
+	 filtering_time: 0.010039091110229492
+	 relabelling time: 0.0005269050598144531
+	 train_time: 2.7730159759521484
+iter count is: 1012
+iteration index: 1012
+intermediate time: 0.0025551319122314453
+Iter collection time: 1.1122064590454102
+skill_dynamics train time: 0.33815598487854004
+agent train time: 5.288500785827637
+	 sampling time: 2.5157899856567383
+	 filtering_time: 0.009967803955078125
+	 relabelling time: 0.000530242919921875
+	 train_time: 2.762045383453369
+iter count is: 1013
+iteration index: 1013
+intermediate time: 0.0025682449340820312
+Iter collection time: 1.1049935817718506
+skill_dynamics train time: 0.3396415710449219
+agent train time: 5.300747394561768
+	 sampling time: 2.5254507064819336
+	 filtering_time: 0.009869813919067383
+	 relabelling time: 0.0005426406860351562
+	 train_time: 2.7647104263305664
+iter count is: 1014
+iteration index: 1014
+intermediate time: 0.0025734901428222656
+Iter collection time: 1.093834638595581
+skill_dynamics train time: 0.34180641174316406
+agent train time: 5.368173360824585
+	 sampling time: 2.518425703048706
+	 filtering_time: 0.009967327117919922
+	 relabelling time: 0.0005364418029785156
+	 train_time: 2.8390614986419678
+iter count is: 1015
+iteration index: 1015
+intermediate time: 0.0025908946990966797
+Iter collection time: 1.087157964706421
+skill_dynamics train time: 0.340228796005249
+agent train time: 5.2697248458862305
+	 sampling time: 2.524639129638672
+	 filtering_time: 0.009953498840332031
+	 relabelling time: 0.0005412101745605469
+	 train_time: 2.734412908554077
+iter count is: 1016
+iteration index: 1016
+intermediate time: 0.0025882720947265625
+Iter collection time: 1.1064808368682861
+skill_dynamics train time: 0.3455381393432617
+agent train time: 5.3260650634765625
+	 sampling time: 2.516481399536133
+	 filtering_time: 0.010002851486206055
+	 relabelling time: 0.00052642822265625
+	 train_time: 2.7988717555999756
+iter count is: 1017
+iteration index: 1017
+intermediate time: 0.002577543258666992
+Iter collection time: 1.0962424278259277
+skill_dynamics train time: 0.34093451499938965
+agent train time: 5.301157474517822
+	 sampling time: 2.511552572250366
+	 filtering_time: 0.010013103485107422
+	 relabelling time: 0.0005357265472412109
+	 train_time: 2.7788825035095215
+iter count is: 1018
+iteration index: 1018
+intermediate time: 0.0025849342346191406
+Iter collection time: 1.0993735790252686
+skill_dynamics train time: 0.33683109283447266
+agent train time: 5.364478826522827
+	 sampling time: 2.5780410766601562
+	 filtering_time: 0.00994729995727539
+	 relabelling time: 0.0005517005920410156
+	 train_time: 2.775758743286133
+iter count is: 1019
+iteration index: 1019
+intermediate time: 0.002537965774536133
+Iter collection time: 1.0687170028686523
+skill_dynamics train time: 0.339277982711792
+agent train time: 5.349518537521362
+	 sampling time: 2.5086913108825684
+	 filtering_time: 0.009939432144165039
+	 relabelling time: 0.0005376338958740234
+	 train_time: 2.830146074295044
+iter count is: 1020
+iteration index: 1020
+intermediate time: 0.0031363964080810547
+Iter collection time: 1.1250245571136475
+skill_dynamics train time: 0.33991312980651855
+agent train time: 5.318776369094849
+	 sampling time: 2.5120370388031006
+	 filtering_time: 0.009946584701538086
+	 relabelling time: 0.0005388259887695312
+	 train_time: 2.7960774898529053
+iter count is: 1021
+iteration index: 1021
+intermediate time: 0.003117799758911133
+Iter collection time: 1.0978035926818848
+skill_dynamics train time: 0.3366050720214844
+agent train time: 5.3344409465789795
+	 sampling time: 2.511337995529175
+	 filtering_time: 0.009953498840332031
+	 relabelling time: 0.0005438327789306641
+	 train_time: 2.8124334812164307
+iter count is: 1022
+iteration index: 1022
+intermediate time: 0.002640962600708008
+Iter collection time: 1.093066930770874
+skill_dynamics train time: 0.3399667739868164
+agent train time: 5.310818910598755
+	 sampling time: 2.5114049911499023
+	 filtering_time: 0.009873151779174805
+	 relabelling time: 0.0005505084991455078
+	 train_time: 2.7888123989105225
+iter count is: 1023
+iteration index: 1023
+intermediate time: 0.0027828216552734375
+Iter collection time: 1.1177301406860352
+skill_dynamics train time: 0.3444955348968506
+agent train time: 5.391856670379639
+	 sampling time: 2.533637046813965
+	 filtering_time: 0.009982585906982422
+	 relabelling time: 0.0005488395690917969
+	 train_time: 2.847512722015381
+iter count is: 1024
+iteration index: 1024
+intermediate time: 0.002682924270629883
+Iter collection time: 1.1221084594726562
+skill_dynamics train time: 0.34006524085998535
+agent train time: 5.370085716247559
+	 sampling time: 2.5272510051727295
+	 filtering_time: 0.010062932968139648
+	 relabelling time: 0.000537872314453125
+	 train_time: 2.832057476043701
+iter count is: 1025
+iteration index: 1025
+intermediate time: 0.0026645660400390625
+Iter collection time: 1.0894052982330322
+skill_dynamics train time: 0.340073823928833
+agent train time: 5.321416616439819
+	 sampling time: 2.5275635719299316
+	 filtering_time: 0.009973764419555664
+	 relabelling time: 0.0005366802215576172
+	 train_time: 2.7831599712371826
+iter count is: 1026
+iteration index: 1026
+intermediate time: 0.00279998779296875
+Iter collection time: 1.0984978675842285
+skill_dynamics train time: 0.3404107093811035
+agent train time: 5.32057523727417
+	 sampling time: 2.520644426345825
+	 filtering_time: 0.009920358657836914
+	 relabelling time: 0.0005402565002441406
+	 train_time: 2.7892849445343018
+iter count is: 1027
+iteration index: 1027
+intermediate time: 0.0029397010803222656
+Iter collection time: 1.1032748222351074
+skill_dynamics train time: 0.33862996101379395
+agent train time: 5.38197660446167
+	 sampling time: 2.537177801132202
+	 filtering_time: 0.00984644889831543
+	 relabelling time: 0.0005457401275634766
+	 train_time: 2.834226608276367
+iter count is: 1028
+iteration index: 1028
+intermediate time: 0.002683877944946289
+Iter collection time: 1.1218156814575195
+skill_dynamics train time: 0.3385498523712158
+agent train time: 5.378444194793701
+	 sampling time: 2.526278257369995
+	 filtering_time: 0.009905576705932617
+	 relabelling time: 0.0005428791046142578
+	 train_time: 2.8415427207946777
+iter count is: 1029
+iteration index: 1029
+intermediate time: 0.0027153491973876953
+Iter collection time: 1.0963759422302246
+skill_dynamics train time: 0.34632086753845215
+agent train time: 5.369146108627319
+	 sampling time: 2.5270020961761475
+	 filtering_time: 0.009918928146362305
+	 relabelling time: 0.0005362033843994141
+	 train_time: 2.8315060138702393
+iter count is: 1030
+iteration index: 1030
+intermediate time: 0.0026938915252685547
+Iter collection time: 1.103137493133545
+skill_dynamics train time: 0.33969569206237793
+agent train time: 5.363573312759399
+	 sampling time: 2.5071640014648438
+	 filtering_time: 0.009928464889526367
+	 relabelling time: 0.0005400180816650391
+	 train_time: 2.845759153366089
+iter count is: 1031
+iteration index: 1031
+intermediate time: 0.0031752586364746094
+Iter collection time: 1.1081395149230957
+skill_dynamics train time: 0.3405344486236572
+agent train time: 5.306751251220703
+	 sampling time: 2.519378185272217
+	 filtering_time: 0.009881019592285156
+	 relabelling time: 0.0005404949188232422
+	 train_time: 2.7767677307128906
+iter count is: 1032
+iteration index: 1032
+intermediate time: 0.0030908584594726562
+Iter collection time: 1.105372667312622
+skill_dynamics train time: 0.34096336364746094
+agent train time: 5.39198899269104
+	 sampling time: 2.5808730125427246
+	 filtering_time: 0.00984954833984375
+	 relabelling time: 0.0005559921264648438
+	 train_time: 2.8005294799804688
+iter count is: 1033
+iteration index: 1033
+intermediate time: 0.0025975704193115234
+Iter collection time: 1.1248126029968262
+skill_dynamics train time: 0.33845090866088867
+agent train time: 5.3361804485321045
+	 sampling time: 2.5158579349517822
+	 filtering_time: 0.00995635986328125
+	 relabelling time: 0.0005445480346679688
+	 train_time: 2.8096437454223633
+iter count is: 1034
+iteration index: 1034
+intermediate time: 0.0025794506072998047
+Iter collection time: 1.0943081378936768
+skill_dynamics train time: 0.34148383140563965
+agent train time: 5.364360332489014
+	 sampling time: 2.506840467453003
+	 filtering_time: 0.009892702102661133
+	 relabelling time: 0.0005488395690917969
+	 train_time: 2.8469021320343018
+iter count is: 1035
+iteration index: 1035
+intermediate time: 0.002538919448852539
+Iter collection time: 1.0862517356872559
+skill_dynamics train time: 0.3383612632751465
+agent train time: 5.33719539642334
+	 sampling time: 2.5105555057525635
+	 filtering_time: 0.009983539581298828
+	 relabelling time: 0.0005476474761962891
+	 train_time: 2.8159267902374268
+iter count is: 1036
+iteration index: 1036
+intermediate time: 0.0025587081909179688
+Iter collection time: 1.1289236545562744
+skill_dynamics train time: 0.3372066020965576
+agent train time: 5.303412199020386
+	 sampling time: 2.5110023021698
+	 filtering_time: 0.009940385818481445
+	 relabelling time: 0.0005445480346679688
+	 train_time: 2.7817468643188477
+iter count is: 1037
+iteration index: 1037
+intermediate time: 0.002553224563598633
+Iter collection time: 1.1073720455169678
+skill_dynamics train time: 0.3395652770996094
+agent train time: 5.327072858810425
+	 sampling time: 2.507754325866699
+	 filtering_time: 0.009970664978027344
+	 relabelling time: 0.000537872314453125
+	 train_time: 2.808619976043701
+iter count is: 1038
+iteration index: 1038
+intermediate time: 0.0026907920837402344
+Iter collection time: 1.0917699337005615
+skill_dynamics train time: 0.34073877334594727
+agent train time: 5.3602135181427
+	 sampling time: 2.514061450958252
+	 filtering_time: 0.009961128234863281
+	 relabelling time: 0.0005400180816650391
+	 train_time: 2.8354718685150146
+iter count is: 1039
+iteration index: 1039
+intermediate time: 0.002743959426879883
+Iter collection time: 1.0974311828613281
+skill_dynamics train time: 0.339158296585083
+agent train time: 5.3781561851501465
+	 sampling time: 2.531031608581543
+	 filtering_time: 0.009790182113647461
+	 relabelling time: 0.0005469322204589844
+	 train_time: 2.836601495742798
+iter count is: 1040
+iteration index: 1040
+intermediate time: 0.0026998519897460938
+Iter collection time: 1.0948827266693115
+skill_dynamics train time: 0.34000062942504883
+agent train time: 5.3438520431518555
+	 sampling time: 2.517765998840332
+	 filtering_time: 0.009945392608642578
+	 relabelling time: 0.0005269050598144531
+	 train_time: 2.8154382705688477
+iter count is: 1041
+iteration index: 1041
+intermediate time: 0.002691984176635742
+Iter collection time: 1.1100695133209229
+skill_dynamics train time: 0.3464927673339844
+agent train time: 5.373924493789673
+	 sampling time: 2.5262882709503174
+	 filtering_time: 0.009981393814086914
+	 relabelling time: 0.0005352497100830078
+	 train_time: 2.836928129196167
+iter count is: 1042
+iteration index: 1042
+intermediate time: 0.002970457077026367
+Iter collection time: 1.0876152515411377
+skill_dynamics train time: 0.3431398868560791
+agent train time: 5.292926788330078
+	 sampling time: 2.5019075870513916
+	 filtering_time: 0.009956836700439453
+	 relabelling time: 0.0005495548248291016
+	 train_time: 2.780330181121826
+iter count is: 1043
+iteration index: 1043
+intermediate time: 0.002714872360229492
+Iter collection time: 1.1371612548828125
+skill_dynamics train time: 0.33835339546203613
+agent train time: 5.369554758071899
+	 sampling time: 2.5281267166137695
+	 filtering_time:/home/quessy/miniconda3/envs/dads-env/lib/python3.6/site-packages/gym/logger.py:30: UserWarning: [33mWARN: gym.spaces.Box autodetected dtype as <class 'numpy.float32'>. Please provide explicit dtype.[0m
+  warnings.warn(colorize('%s: %s'%('WARN', msg % args), 'yellow'))
+/home/quessy/miniconda3/envs/dads-env/lib/python3.6/site-packages/gym/logger.py:30: UserWarning: [33mWARN: gym.spaces.Box autodetected dtype as <class 'numpy.float32'>. Please provide explicit dtype.[0m
+  warnings.warn(colorize('%s: %s'%('WARN', msg % args), 'yellow'))
+/home/quessy/miniconda3/envs/dads-env/lib/python3.6/site-packages/gym/logger.py:30: UserWarning: [33mWARN: gym.spaces.Box autodetected dtype as <class 'numpy.float32'>. Please provide explicit dtype.[0m
+  warnings.warn(colorize('%s: %s'%('WARN', msg % args), 'yellow'))
+I0909 10:45:04.683683 140283184944960 common.py:998] Saved checkpoint: /home/quessy/Dev/dads/log_dir/bipedal_walker/models/agent/ckpt-1050
+I0909 10:45:04.689671 140283184944960 common.py:998] Saved checkpoint: /home/quessy/Dev/dads/log_dir/bipedal_walker/models/policy/ckpt-1050
+I0909 10:45:04.712558 140283184944960 common.py:998] Saved checkpoint: /home/quessy/Dev/dads/log_dir/bipedal_walker/models/replay_buffer/ckpt-1050
+ 0.009841203689575195
+	 relabelling time: 0.0005323886871337891
+	 train_time: 2.83087420463562
+iter count is: 1044
+iteration index: 1044
+intermediate time: 0.0028269290924072266
+Iter collection time: 1.0999469757080078
+skill_dynamics train time: 0.3391087055206299
+agent train time: 5.36861777305603
+	 sampling time: 2.52752685546875
+	 filtering_time: 0.009943008422851562
+	 relabelling time: 0.0005402565002441406
+	 train_time: 2.8304290771484375
+iter count is: 1045
+iteration index: 1045
+intermediate time: 0.002664327621459961
+Iter collection time: 1.081864356994629
+skill_dynamics train time: 0.33768153190612793
+agent train time: 5.307971954345703
+	 sampling time: 2.508524179458618
+	 filtering_time: 0.009875297546386719
+	 relabelling time: 0.0005357265472412109
+	 train_time: 2.788867473602295
+iter count is: 1046
+iteration index: 1046
+intermediate time: 0.0027229785919189453
+Iter collection time: 1.0742766857147217
+skill_dynamics train time: 0.334719181060791
+agent train time: 5.385169744491577
+	 sampling time: 2.578296184539795
+	 filtering_time: 0.009878873825073242
+	 relabelling time: 0.0005478858947753906
+	 train_time: 2.7962701320648193
+iter count is: 1047
+iteration index: 1047
+intermediate time: 0.002712249755859375
+Iter collection time: 1.084742546081543
+skill_dynamics train time: 0.3445243835449219
+agent train time: 5.3246424198150635
+	 sampling time: 2.5138301849365234
+	 filtering_time: 0.009765625
+	 relabelling time: 0.0005283355712890625
+	 train_time: 2.800342321395874
+iter count is: 1048
+iteration index: 1048
+intermediate time: 0.0026803016662597656
+Iter collection time: 1.0963428020477295
+skill_dynamics train time: 0.33799028396606445
+agent train time: 5.305509090423584
+	 sampling time: 2.4947662353515625
+	 filtering_time: 0.009868860244750977
+	 relabelling time: 0.0005383491516113281
+	 train_time: 2.8001699447631836
+iter count is: 1049
+iteration index: 1049
+intermediate time: 0.0027010440826416016
+Iter collection time: 1.0855462551116943
+skill_dynamics train time: 0.3415679931640625
+agent train time: 5.380805730819702
+	 sampling time: 2.5188803672790527
+	 filtering_time: 0.009832382202148438
+	 relabelling time: 0.0005412101745605469
+	 train_time: 2.8513689041137695
+iter count is: 1050
+iteration index: 1050
+Saving stuff
+intermediate time: 0.23812603950500488
+Iter collection time: 1.1414117813110352
+skill_dynamics train time: 0.34095072746276855
+agent train time: 5.339917182922363
+	 sampling time: 2.5124590396881104
+	 filtering_time: 0.00985574722290039
+	 relabelling time: 0.0005481243133544922
+	 train_time: 2.8168692588806152
+iter count is: 1051
+iteration index: 1051
+intermediate time: 0.0027425289154052734
+Iter collection time: 1.0966036319732666
+skill_dynamics train time: 0.3352236747741699
+agent train time: 5.325527191162109
+	 sampling time: 2.4976441860198975
+	 filtering_time: 0.009847640991210938
+	 relabelling time: 0.0005440711975097656
+	 train_time: 2.8173084259033203
+iter count is: 1052
+iteration index: 1052
+intermediate time: 0.002763509750366211
+Iter collection time: 1.0972633361816406
+skill_dynamics train time: 0.3425934314727783
+agent train time: 5.380582332611084
+	 sampling time: 2.49542498588562
+	 filtering_time: 0.009944915771484375
+	 relabelling time: 0.0005471706390380859
+	 train_time: 2.874486207962036
+iter count is: 1053
+iteration index: 1053
+intermediate time: 0.0026884078979492188
+Iter collection time: 1.1043705940246582
+skill_dynamics train time: 0.3376297950744629
+agent train time: 5.308528184890747
+	 sampling time: 2.517005205154419
+	 filtering_time: 0.009952783584594727
+	 relabelling time: 0.0005545616149902344
+	 train_time: 2.78084135055542
+iter count is: 1054
+iteration index: 1054
+intermediate time: 0.002672433853149414
+Iter collection time: 1.094508409500122
+skill_dynamics train time: 0.3437535762786865
+agent train time: 5.306037902832031
+	 sampling time: 2.519382953643799
+	 filtering_time: 0.009914159774780273
+	 relabelling time: 0.0005319118499755859
+	 train_time: 2.776033878326416
+iter count is: 1055
+iteration index: 1055
+intermediate time: 0.0027027130126953125
+Iter collection time: 1.092005968093872
+skill_dynamics train time: 0.3518366813659668
+agent train time: 5.334744930267334
+	 sampling time: 2.510314464569092
+	 filtering_time: 0.009821176528930664
+	 relabelling time: 0.0005488395690917969
+	 train_time: 2.813887596130371
+iter count is: 1056
+iteration index: 1056
+intermediate time: 0.002704620361328125
+Iter collection time: 1.0824055671691895
+skill_dynamics train time: 0.338362455368042
+agent train time: 5.331183910369873
+	 sampling time: 2.5101563930511475
+	 filtering_time: 0.00983881950378418
+	 relabelling time: 0.0005426406860351562
+	 train_time: 2.8104729652404785
+iter count is: 1057
+iteration index: 1057
+intermediate time: 0.0027048587799072266
+Iter collection time: 1.1194231510162354
+skill_dynamics train time: 0.3417203426361084
+agent train time: 5.36542820930481
+	 sampling time: 2.506221294403076
+	 filtering_time: 0.009925603866577148
+	 relabelling time: 0.0005407333374023438
+	 train_time: 2.8485231399536133
+iter count is: 1058
+iteration index: 1058
+intermediate time: 0.0027456283569335938
+Iter collection time: 1.110170602798462
+skill_dynamics train time: 0.34937500953674316
+agent train time: 5.319097518920898
+	 sampling time: 2.5161304473876953
+	 filtering_time: 0.009957313537597656
+	 relabelling time: 0.0005376338958740234
+	 train_time: 2.792280673980713
+iter count is: 1059
+iteration index: 1059
+intermediate time: 0.002737283706665039
+Iter collection time: 1.0956356525421143
+skill_dynamics train time: 0.34014248847961426
+agent train time: 5.253931045532227
+	 sampling time: 2.492396593093872
+	 filtering_time: 0.009955406188964844
+	 relabelling time: 0.0005459785461425781
+	 train_time: 2.750842571258545
+iter count is: 1060
+iteration index: 1060
+intermediate time: 0.0026848316192626953
+Iter collection time: 1.0774991512298584
+skill_dynamics train time: 0.338348388671875
+agent train time: 5.360336780548096
+	 sampling time: 2.4986462593078613
+	 filtering_time: 0.00997781753540039
+	 relabelling time: 0.0005347728729248047
+	 train_time: 2.8497087955474854
+iter count is: 1061
+iteration index: 1061
+intermediate time: 0.0027141571044921875
+Iter collection time: 1.0863761901855469
+skill_dynamics train time: 0.3374631404876709
+agent train time: 5.451449394226074
+	 sampling time: 2.5801005363464355
+	 filtering_time: 0.00998234748840332
+	 relabelling time: 0.0005638599395751953
+	 train_time: 2.8606340885162354
+iter count is: 1062
+iteration index: 1062
+intermediate time: 0.0027489662170410156
+Iter collection time: 1.079643726348877
+skill_dynamics train time: 0.3413102626800537
+agent train time: 5.350429058074951
+	 sampling time: 2.5091826915740967
+	 filtering_time: 0.009935855865478516
+	 relabelling time: 0.00055694580078125
+	 train_time: 2.83056378364563
+iter count is: 1063
+iteration index: 1063
+intermediate time: 0.002716064453125
+Iter collection time: 1.0796129703521729
+skill_dynamics train time: 0.33927202224731445
+agent train time: 5.328410863876343
+	 sampling time: 2.53434681892395
+	 filtering_time: 0.010071754455566406
+	 relabelling time: 0.0005447864532470703
+	 train_time: 2.7832767963409424
+iter count is: 1064
+iteration index: 1064
+intermediate time: 0.002664804458618164
+Iter collection time: 1.1061530113220215
+skill_dynamics train time: 0.3377237319946289
+agent train time: 5.374131679534912
+	 sampling time: 2.5150434970855713
+	 filtering_time: 0.009936332702636719
+	 relabelling time: 0.0005536079406738281
+	 train_time: 2.848416328430176
+iter count is: 1065
+iteration index: 1065
+intermediate time: 0.0026938915252685547
+Iter collection time: 1.0820362567901611
+skill_dynamics train time: 0.3409769535064697
+agent train time: 5.297721862792969
+	 sampling time: 2.5087761878967285
+	 filtering_time: 0.010003089904785156
+	 relabelling time: 0.0005500316619873047
+	 train_time: 2.7782154083251953
+iter count is: 1066
+iteration index: 1066
+intermediate time: 0.0027282238006591797
+Iter collection time: 1.0993361473083496
+skill_dynamics train time: 0.34082674980163574
+agent train time: 5.368859529495239
+	 sampling time: 2.540982484817505
+	 filtering_time: 0.010024309158325195
+	 relabelling time: 0.0005552768707275391
