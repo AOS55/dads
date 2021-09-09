@@ -100,6 +100,12 @@ flags.DEFINE_string(
 flags.DEFINE_integer('record_freq', 100,
                      'Video recording frequency within the training loop')
 
+# POET hyperparameters
+flags.DEFINE_integer('poet_epochs', 20, 'Number of POET loops to run')
+flags.DEFINE_integer('mutation_interval', 2, 'How often to mutate the environment')
+flags.DEFINE_integer('transfer_interval', 4, 'How often to transfer skills across agents to increase diversity')
+flags.DEFINE_integer('env_size', 10, 'How many environments to maintain in mutation stage')
+
 # final evaluation after training is done
 flags.DEFINE_integer('run_eval', 0, 'Evaluate learnt skills')
 
@@ -221,9 +227,11 @@ flags.DEFINE_integer('top_primitives', 5, 'Optimization parameter when using uni
 
 # global variables for this script
 observation_omit_size = 0
-goal_coord = np.array([10., 10.])
+goal_coord = np.array([10., 10.])  # assigns a goal co-ord even if unused by env being run
 sample_count = 0
 iter_count = 0
+poet_step = 0
+ea_pairs = {}
 episode_size_buffer = []
 episode_return_buffer = []
 
@@ -1349,423 +1357,434 @@ def main(_):
   tf.compat.v1.enable_resource_variables()
   tf.compat.v1.disable_eager_execution()
   logging.set_verbosity(logging.INFO)
-  global observation_omit_size, goal_coord, sample_count, iter_count, episode_size_buffer, episode_return_buffer
+  global observation_omit_size, goal_coord, sample_count, iter_count, poet_step,\
+    ea_pairs, episode_size_buffer, episode_return_buffer
 
+  # setup root dir in log_dir
   root_dir = os.path.abspath(os.path.expanduser(FLAGS.logdir))
   if not tf.io.gfile.exists(root_dir):
     tf.io.gfile.makedirs(root_dir)
   log_dir = os.path.join(root_dir, FLAGS.environment)
-
   if not tf.io.gfile.exists(log_dir):
     tf.io.gfile.makedirs(log_dir)
-  save_dir = os.path.join(log_dir, 'models')
-  if not tf.io.gfile.exists(save_dir):
-    tf.io.gfile.makedirs(save_dir)
 
-  print('directory for recording experiment data:', log_dir)
+  for poet_step in range(FLAGS.poet_epochs):
+    if poet_step > 0 and poet_step % FLAGS.mutation_interval == 0:
+      ea_pairs = mutator.mutate_env(ea_pairs)
 
-  # in case training is paused and resumed, so can be restored
-  try:
-    sample_count = np.load(os.path.join(log_dir, 'sample_count.npy')).tolist()
-    iter_count = np.load(os.path.join(log_dir, 'iter_count.npy')).tolist()
-    episode_size_buffer = np.load(os.path.join(log_dir, 'episode_size_buffer.npy')).tolist()
-    episode_return_buffer = np.load(os.path.join(log_dir, 'episode_return_buffer.npy')).tolist()
-  except:
-    sample_count = 0
-    iter_count = 0
-    episode_size_buffer = []
-    episode_return_buffer = []
+    # Make an env-agent pair and then go to that dir, env is static for dir
+    save_dir = os.path.join(log_dir, 'models')
+    if not tf.io.gfile.exists(save_dir):
+      tf.io.gfile.makedirs(save_dir)
 
-  train_summary_writer = tf.compat.v2.summary.create_file_writer(
-      os.path.join(log_dir, 'train', 'in_graph_data'), flush_millis=10 * 1000)
-  train_summary_writer.set_as_default()
+    print('directory for recording experiment data:', log_dir)
 
-  global_step = tf.compat.v1.train.get_or_create_global_step()
-  with tf.compat.v2.summary.record_if(True):
+    # in case training is paused and resumed, so can be restored
+    try:
+      sample_count = np.load(os.path.join(log_dir, 'sample_count.npy')).tolist()
+      iter_count = np.load(os.path.join(log_dir, 'iter_count.npy')).tolist()
+      episode_size_buffer = np.load(os.path.join(log_dir, 'episode_size_buffer.npy')).tolist()
+      episode_return_buffer = np.load(os.path.join(log_dir, 'episode_return_buffer.npy')).tolist()
+    except:
+      sample_count = 0
+      iter_count = 0
+      episode_size_buffer = []
+      episode_return_buffer = []
 
-    # Setup environment
-    py_env = setup_env()
-    tf_agent_time_step_spec, tf_action_spec, skill_dynamics_observation_size, \
-    py_action_spec, py_env_time_step_spec = setup_spec(py_env)
-    agent = setup_dads(save_dir, global_step, tf_agent_time_step_spec, tf_action_spec, skill_dynamics_observation_size)
-    eval_policy, collect_policy, relabel_policy = setup_policys(agent, py_action_spec,
-                                                                py_env_time_step_spec, save_dir, global_step)
-    train_checkpointer, policy_checkpointer,\
-    rb_checkpointer, on_buffer, rbuffer = setup_replay(agent, py_action_spec, py_env_time_step_spec,
-                                                       save_dir, global_step)
+    train_summary_writer = tf.compat.v2.summary.create_file_writer(
+        os.path.join(log_dir, 'train', 'in_graph_data'), flush_millis=10 * 1000)
+    train_summary_writer.set_as_default()
 
-    setup_time = time.time() - start_time
-    print('Setup time:', setup_time)
-    with tf.compat.v1.Session().as_default() as sess:
-      train_checkpointer.initialize_or_restore(sess)
-      rb_checkpointer.initialize_or_restore(sess)
-      agent.set_sessions(
-          initialize_or_restore_skill_dynamics=True, session=sess)
+    global_step = tf.compat.v1.train.get_or_create_global_step()
+    with tf.compat.v2.summary.record_if(True):
 
-      meta_start_time = time.time()  # overall start time
-      if FLAGS.run_train:
+      # Setup environment
+      py_env = setup_env()
+      tf_agent_time_step_spec, tf_action_spec, skill_dynamics_observation_size, \
+      py_action_spec, py_env_time_step_spec = setup_spec(py_env)
+      agent = setup_dads(save_dir, global_step, tf_agent_time_step_spec, tf_action_spec, skill_dynamics_observation_size)
+      eval_policy, collect_policy, relabel_policy = setup_policys(agent, py_action_spec,
+                                                                  py_env_time_step_spec, save_dir, global_step)
+      train_checkpointer, policy_checkpointer,\
+      rb_checkpointer, on_buffer, rbuffer = setup_replay(agent, py_action_spec, py_env_time_step_spec,
+                                                         save_dir, global_step)
 
-        train_writer = tf.compat.v1.summary.FileWriter(
-            os.path.join(log_dir, 'train'), sess.graph)
-        common.initialize_uninitialized_variables(sess)
-        sess.run(train_summary_writer.init())
+      setup_time = time.time() - start_time
+      print('Setup time:', setup_time)
+      with tf.compat.v1.Session().as_default() as sess:
+        train_checkpointer.initialize_or_restore(sess)
+        rb_checkpointer.initialize_or_restore(sess)
+        agent.set_sessions(
+            initialize_or_restore_skill_dynamics=True, session=sess)
 
-        time_step = py_env.reset()
-        episode_size_buffer.append(0)
-        episode_return_buffer.append(0.)
+        meta_start_time = time.time()  # overall start time
+        if FLAGS.run_train:
 
-        if iter_count == 0:
-          sample_count = print_collection_time(py_env, time_step, collect_policy, rbuffer, on_buffer, sample_count)
+          train_writer = tf.compat.v1.summary.FileWriter(
+              os.path.join(log_dir, 'train'), sess.graph)
+          common.initialize_uninitialized_variables(sess)
+          sess.run(train_summary_writer.init())
 
-        agent_end_train_time = time.time()
-        while iter_count < FLAGS.num_epochs:
-          print('iteration index:', iter_count)
+          time_step = py_env.reset()
+          episode_size_buffer.append(0)
+          episode_return_buffer.append(0.)
 
-          # model save
-          if FLAGS.save_model is not None and iter_count % FLAGS.save_freq == 0:
-            print('Saving stuff')
-            train_checkpointer.save(global_step=iter_count)
-            policy_checkpointer.save(global_step=iter_count)
-            rb_checkpointer.save(global_step=iter_count)
-            agent.save_variables(global_step=iter_count)
-
-            np.save(os.path.join(log_dir, 'sample_count'), sample_count)
-            np.save(os.path.join(log_dir, 'episode_size_buffer'), episode_size_buffer)
-            np.save(os.path.join(log_dir, 'episode_return_buffer'), episode_return_buffer)
-            np.save(os.path.join(log_dir, 'iter_count'), iter_count)
-
-          collect_start_time = time.time()
-          print('intermediate time:', collect_start_time - agent_end_train_time)
-
-          # Collect experience for training
-          time_step, collect_info = collect_experience(
-              py_env,
-              time_step,
-              collect_policy,
-              buffer_list=[rbuffer] if not FLAGS.train_skill_dynamics_on_policy
-              else [rbuffer, on_buffer],
-              num_steps=FLAGS.collect_steps)
-          sample_count += FLAGS.collect_steps
-          _process_episodic_data(episode_size_buffer,
-                                 collect_info['episode_sizes'])
-          _process_episodic_data(episode_return_buffer,
-                                 collect_info['episode_return'])
-          collect_end_time = time.time()
-          print('Iter collection time:', collect_end_time - collect_start_time)
-
-          # only for debugging skill relabelling
-          if iter_count >= 1 and FLAGS.debug_skill_relabelling:
-            trajectory_sample = rbuffer.get_next(
-                sample_batch_size=5, num_steps=2)
-            trajectory_sample = _filter_trajectories(trajectory_sample)
-            # trajectory_sample, _ = relabel_skill(
-            #     trajectory_sample,
-            #     relabel_type='policy',
-            #     cur_policy=relabel_policy,
-            #     cur_skill_dynamics=agent.skill_dynamics)
-            trajectory_sample, is_weights = relabel_skill(
-                trajectory_sample,
-                relabel_type='importance_sampling',
-                cur_policy=relabel_policy,
-                cur_skill_dynamics=agent.skill_dynamics)
-            print(is_weights)
-
-          skill_dynamics_buffer = rbuffer
-          if FLAGS.train_skill_dynamics_on_policy:
-            skill_dynamics_buffer = on_buffer
-
-          # TODO(architsh): clear_buffer_every_iter needs to fix these as well
-          train_skill_dynamics(rbuffer, skill_dynamics_buffer, relabel_policy, agent, on_buffer)
-
-          skill_dynamics_end_train_time = time.time()
-          print('skill_dynamics train time:',
-                skill_dynamics_end_train_time - collect_end_time)
-
-          running_dads_reward, running_logp, running_logp_altz = [], [], []
-
-          # agent train loop analysis
-          within_agent_train_time = time.time()
-          sampling_time_arr, filtering_time_arr, relabelling_time_arr, train_time_arr = [], [], [], []
-          for _ in range(
-              1 if FLAGS.clear_buffer_every_iter else FLAGS.agent_train_steps):
-            if FLAGS.clear_buffer_every_iter:
-              trajectory_sample = rbuffer.gather_all_transitions()
-            else:
-              trajectory_sample = rbuffer.get_next(
-                  sample_batch_size=FLAGS.agent_batch_size, num_steps=2)
-
-            buffer_sampling_time = time.time()
-            sampling_time_arr.append(buffer_sampling_time -
-                                     within_agent_train_time)
-            trajectory_sample = _filter_trajectories(trajectory_sample)
-
-            filtering_time = time.time()
-            filtering_time_arr.append(filtering_time - buffer_sampling_time)
-            trajectory_sample, _ = relabel_skill(
-                trajectory_sample,
-                relabel_type=FLAGS.agent_relabel_type,
-                cur_policy=relabel_policy,
-                cur_skill_dynamics=agent.skill_dynamics)
-            relabelling_time = time.time()
-            relabelling_time_arr.append(relabelling_time - filtering_time)
-
-            # need to match the assert structure
-            if FLAGS.skill_dynamics_relabel_type is not None and 'importance_sampling' in FLAGS.skill_dynamics_relabel_type:
-              trajectory_sample = trajectory_sample._replace(policy_info=())
-
-            # train agent itself with SAC on different reward
-            if not FLAGS.clear_buffer_every_iter:
-              dads_reward, info = agent.train_loop(
-                  trajectory_sample,
-                  recompute_reward=True,  # turn False for normal SAC training
-                  batch_size=-1,
-                  num_steps=1)
-            else:
-              dads_reward, info = agent.train_loop(
-                  trajectory_sample,
-                  recompute_reward=True,  # turn False for normal SAC training
-                  batch_size=FLAGS.agent_batch_size,
-                  num_steps=FLAGS.agent_train_steps)
-
-            within_agent_train_time = time.time()
-            train_time_arr.append(within_agent_train_time - relabelling_time)
-            if dads_reward is not None:
-              running_dads_reward.append(dads_reward)
-              running_logp.append(info['logp'])
-              running_logp_altz.append(info['logp_altz'])
+          if iter_count == 0:
+            sample_count = print_collection_time(py_env, time_step, collect_policy, rbuffer, on_buffer, sample_count)
 
           agent_end_train_time = time.time()
-          print('agent train time:',
-                agent_end_train_time - skill_dynamics_end_train_time)
-          print('\t sampling time:', np.sum(sampling_time_arr))
-          print('\t filtering_time:', np.sum(filtering_time_arr))
-          print('\t relabelling time:', np.sum(relabelling_time_arr))
-          print('\t train_time:', np.sum(train_time_arr))
+          while iter_count < FLAGS.num_epochs:
+            print('iteration index:', iter_count)
 
-          if len(episode_size_buffer) > 1:
+            # model save
+            if FLAGS.save_model is not None and iter_count % FLAGS.save_freq == 0:
+              print('Saving stuff')
+              train_checkpointer.save(global_step=iter_count)
+              policy_checkpointer.save(global_step=iter_count)
+              rb_checkpointer.save(global_step=iter_count)
+              agent.save_variables(global_step=iter_count)
+
+              np.save(os.path.join(log_dir, 'sample_count'), sample_count)
+              np.save(os.path.join(log_dir, 'episode_size_buffer'), episode_size_buffer)
+              np.save(os.path.join(log_dir, 'episode_return_buffer'), episode_return_buffer)
+              np.save(os.path.join(log_dir, 'iter_count'), iter_count)
+
+            collect_start_time = time.time()
+            print('intermediate time:', collect_start_time - agent_end_train_time)
+
+            # Collect experience for training
+            time_step, collect_info = collect_experience(
+                py_env,
+                time_step,
+                collect_policy,
+                buffer_list=[rbuffer] if not FLAGS.train_skill_dynamics_on_policy
+                else [rbuffer, on_buffer],
+                num_steps=FLAGS.collect_steps)
+            sample_count += FLAGS.collect_steps
+            _process_episodic_data(episode_size_buffer,
+                                   collect_info['episode_sizes'])
+            _process_episodic_data(episode_return_buffer,
+                                   collect_info['episode_return'])
+            collect_end_time = time.time()
+            print('Iter collection time:', collect_end_time - collect_start_time)
+
+            # only for debugging skill relabelling
+            if iter_count >= 1 and FLAGS.debug_skill_relabelling:
+              trajectory_sample = rbuffer.get_next(
+                  sample_batch_size=5, num_steps=2)
+              trajectory_sample = _filter_trajectories(trajectory_sample)
+              # trajectory_sample, _ = relabel_skill(
+              #     trajectory_sample,
+              #     relabel_type='policy',
+              #     cur_policy=relabel_policy,
+              #     cur_skill_dynamics=agent.skill_dynamics)
+              trajectory_sample, is_weights = relabel_skill(
+                  trajectory_sample,
+                  relabel_type='importance_sampling',
+                  cur_policy=relabel_policy,
+                  cur_skill_dynamics=agent.skill_dynamics)
+              print(is_weights)
+
+            skill_dynamics_buffer = rbuffer
+            if FLAGS.train_skill_dynamics_on_policy:
+              skill_dynamics_buffer = on_buffer
+
+            # TODO(architsh): clear_buffer_every_iter needs to fix these as well
+            train_skill_dynamics(rbuffer, skill_dynamics_buffer, relabel_policy, agent, on_buffer)
+
+            skill_dynamics_end_train_time = time.time()
+            print('skill_dynamics train time:',
+                  skill_dynamics_end_train_time - collect_end_time)
+
+            running_dads_reward, running_logp, running_logp_altz = [], [], []
+
+            # agent train loop analysis
+            within_agent_train_time = time.time()
+            sampling_time_arr, filtering_time_arr, relabelling_time_arr, train_time_arr = [], [], [], []
+            for _ in range(
+                1 if FLAGS.clear_buffer_every_iter else FLAGS.agent_train_steps):
+              if FLAGS.clear_buffer_every_iter:
+                trajectory_sample = rbuffer.gather_all_transitions()
+              else:
+                trajectory_sample = rbuffer.get_next(
+                    sample_batch_size=FLAGS.agent_batch_size, num_steps=2)
+
+              buffer_sampling_time = time.time()
+              sampling_time_arr.append(buffer_sampling_time -
+                                       within_agent_train_time)
+              trajectory_sample = _filter_trajectories(trajectory_sample)
+
+              filtering_time = time.time()
+              filtering_time_arr.append(filtering_time - buffer_sampling_time)
+              trajectory_sample, _ = relabel_skill(
+                  trajectory_sample,
+                  relabel_type=FLAGS.agent_relabel_type,
+                  cur_policy=relabel_policy,
+                  cur_skill_dynamics=agent.skill_dynamics)
+              relabelling_time = time.time()
+              relabelling_time_arr.append(relabelling_time - filtering_time)
+
+              # need to match the assert structure
+              if FLAGS.skill_dynamics_relabel_type is not None and 'importance_sampling' in FLAGS.skill_dynamics_relabel_type:
+                trajectory_sample = trajectory_sample._replace(policy_info=())
+
+              # train agent itself with SAC on different reward
+              if not FLAGS.clear_buffer_every_iter:
+                dads_reward, info = agent.train_loop(
+                    trajectory_sample,
+                    recompute_reward=True,  # turn False for normal SAC training
+                    batch_size=-1,
+                    num_steps=1)
+              else:
+                dads_reward, info = agent.train_loop(
+                    trajectory_sample,
+                    recompute_reward=True,  # turn False for normal SAC training
+                    batch_size=FLAGS.agent_batch_size,
+                    num_steps=FLAGS.agent_train_steps)
+
+              within_agent_train_time = time.time()
+              train_time_arr.append(within_agent_train_time - relabelling_time)
+              if dads_reward is not None:
+                running_dads_reward.append(dads_reward)
+                running_logp.append(info['logp'])
+                running_logp_altz.append(info['logp_altz'])
+
+            agent_end_train_time = time.time()
+            print('agent train time:',
+                  agent_end_train_time - skill_dynamics_end_train_time)
+            print('\t sampling time:', np.sum(sampling_time_arr))
+            print('\t filtering_time:', np.sum(filtering_time_arr))
+            print('\t relabelling time:', np.sum(relabelling_time_arr))
+            print('\t train_time:', np.sum(train_time_arr))
+
+            if len(episode_size_buffer) > 1:
+              train_writer.add_summary(
+                  tf.compat.v1.Summary(value=[
+                      tf.compat.v1.Summary.Value(
+                          tag='episode_size',
+                          simple_value=np.mean(episode_size_buffer[:-1]))
+                  ]), sample_count)
+            if len(episode_return_buffer) > 1:
+              train_writer.add_summary(
+                  tf.compat.v1.Summary(value=[
+                      tf.compat.v1.Summary.Value(
+                          tag='episode_return',
+                          simple_value=np.mean(episode_return_buffer[:-1]))
+                  ]), sample_count)
             train_writer.add_summary(
                 tf.compat.v1.Summary(value=[
                     tf.compat.v1.Summary.Value(
-                        tag='episode_size',
-                        simple_value=np.mean(episode_size_buffer[:-1]))
+                        tag='dads/reward',
+                        simple_value=np.mean(
+                            np.concatenate(running_dads_reward)))
                 ]), sample_count)
-          if len(episode_return_buffer) > 1:
+
             train_writer.add_summary(
                 tf.compat.v1.Summary(value=[
                     tf.compat.v1.Summary.Value(
-                        tag='episode_return',
-                        simple_value=np.mean(episode_return_buffer[:-1]))
+                        tag='dads/logp',
+                        simple_value=np.mean(np.concatenate(running_logp)))
                 ]), sample_count)
-          train_writer.add_summary(
-              tf.compat.v1.Summary(value=[
-                  tf.compat.v1.Summary.Value(
-                      tag='dads/reward',
-                      simple_value=np.mean(
-                          np.concatenate(running_dads_reward)))
-              ]), sample_count)
+            train_writer.add_summary(
+                tf.compat.v1.Summary(value=[
+                    tf.compat.v1.Summary.Value(
+                        tag='dads/logp_altz',
+                        simple_value=np.mean(np.concatenate(running_logp_altz)))
+                ]), sample_count)
 
-          train_writer.add_summary(
-              tf.compat.v1.Summary(value=[
-                  tf.compat.v1.Summary.Value(
-                      tag='dads/logp',
-                      simple_value=np.mean(np.concatenate(running_logp)))
-              ]), sample_count)
-          train_writer.add_summary(
-              tf.compat.v1.Summary(value=[
-                  tf.compat.v1.Summary.Value(
-                      tag='dads/logp_altz',
-                      simple_value=np.mean(np.concatenate(running_logp_altz)))
-              ]), sample_count)
+            if FLAGS.clear_buffer_every_iter:
+              rbuffer.clear()
+              time_step = py_env.reset()
+              episode_size_buffer = [0]
+              episode_return_buffer = [0.]
 
-          if FLAGS.clear_buffer_every_iter:
-            rbuffer.clear()
-            time_step = py_env.reset()
-            episode_size_buffer = [0]
-            episode_return_buffer = [0.]
+            # within train loop evaluation
+            if FLAGS.record_freq is not None and iter_count % FLAGS.record_freq == 0:
+              cur_vid_dir = os.path.join(log_dir, 'videos', str(iter_count))
+              tf.io.gfile.makedirs(cur_vid_dir)
+              eval_loop(
+                  cur_vid_dir,
+                  eval_policy,
+                  dynamics=agent.skill_dynamics,
+                  vid_name=FLAGS.vid_name,
+                  plot_name='traj_plot')
 
-          # within train loop evaluation
-          if FLAGS.record_freq is not None and iter_count % FLAGS.record_freq == 0:
-            cur_vid_dir = os.path.join(log_dir, 'videos', str(iter_count))
-            tf.io.gfile.makedirs(cur_vid_dir)
+            iter_count += 1
+            print(f'iter count is: {iter_count}')
+
+          py_env.close()
+
+          print('Final statistics:')
+          print('\ttotal time for %d epochs: %f' %(FLAGS.num_epochs, time.time() - meta_start_time))
+          print('\tsteps collected during this time: %d' %(rbuffer.size))
+
+        # final evaluation, if any
+        if FLAGS.run_eval:
+          vid_dir = os.path.join(log_dir, 'videos', 'final_eval')
+          if not tf.io.gfile.exists(vid_dir):
+            tf.io.gfile.makedirs(vid_dir)
+          vid_name = FLAGS.vid_name
+
+          # generic skill evaluation
+          if FLAGS.deterministic_eval or FLAGS.num_evals > 0:
             eval_loop(
-                cur_vid_dir,
+                vid_dir,
                 eval_policy,
                 dynamics=agent.skill_dynamics,
-                vid_name=FLAGS.vid_name,
+                vid_name=vid_name,
                 plot_name='traj_plot')
 
-          iter_count += 1
-          print(f'iter count is: {iter_count}')
+          # for planning the evaluation directory is changed to save directory
+          eval_dir = os.path.join(log_dir, 'eval')
+          goal_coord_list = [
+              np.array([10.0, 10.0]),
+              np.array([-10.0, 10.0]),
+              np.array([-10.0, -10.0]),
+              np.array([10.0, -10.0]),
+              np.array([0.0, -10.0]),
+              np.array([5.0, 10.0])
+          ]
 
-        py_env.close()
+          eval_dir = os.path.join(eval_dir, 'mpc_eval')
+          if not tf.io.gfile.exists(eval_dir):
+            tf.io.gfile.makedirs(eval_dir)
+          save_label = 'goal_'
+          if 'discrete' in FLAGS.skill_type:
+            planning_fn = eval_planning
 
-        print('Final statistics:')
-        print('\ttotal time for %d epochs: %f' %(FLAGS.num_epochs, time.time() - meta_start_time))
-        print('\tsteps collected during this time: %d' %(rbuffer.size))
+          else:
+            planning_fn = eval_mppi
 
-      # final evaluation, if any
-      if FLAGS.run_eval:
-        vid_dir = os.path.join(log_dir, 'videos', 'final_eval')
-        if not tf.io.gfile.exists(vid_dir):
-          tf.io.gfile.makedirs(vid_dir)
-        vid_name = FLAGS.vid_name
+          color_map = ['b', 'g', 'r', 'c', 'm', 'y', 'k']
 
-        # generic skill evaluation
-        if FLAGS.deterministic_eval or FLAGS.num_evals > 0:
-          eval_loop(
-              vid_dir,
-              eval_policy,
-              dynamics=agent.skill_dynamics,
-              vid_name=vid_name,
-              plot_name='traj_plot')
+          average_reward_all_goals = []
+          _, ax1 = plt.subplots(1, 1)
+          ax1.set_xlim(-20, 20)
+          ax1.set_ylim(-20, 20)
 
-        # for planning the evaluation directory is changed to save directory
-        eval_dir = os.path.join(log_dir, 'eval')
-        goal_coord_list = [
-            np.array([10.0, 10.0]),
-            np.array([-10.0, 10.0]),
-            np.array([-10.0, -10.0]),
-            np.array([10.0, -10.0]),
-            np.array([0.0, -10.0]),
-            np.array([5.0, 10.0])
-        ]
+          final_text = open(os.path.join(eval_dir, 'eval_data.txt'), 'w')
 
-        eval_dir = os.path.join(eval_dir, 'mpc_eval')
-        if not tf.io.gfile.exists(eval_dir):
-          tf.io.gfile.makedirs(eval_dir)
-        save_label = 'goal_'
-        if 'discrete' in FLAGS.skill_type:
-          planning_fn = eval_planning
+          # goal_list = []
+          # for r in range(4, 50):
+          #   for _ in range(10):
+          #     theta = np.random.uniform(-np.pi, np.pi)
+          #     goal_x = r * np.cos(theta)
+          #     goal_y = r * np.sin(theta)
+          #     goal_list.append([r, theta, goal_x, goal_y])
 
-        else:
-          planning_fn = eval_mppi
+          # def _sample_goal():
+          #   goal_coords = np.random.uniform(0, 5, size=2)
+          #   # while np.linalg.norm(goal_coords) < np.linalg.norm([10., 10.]):
+          #   #   goal_coords = np.random.uniform(-25, 25, size=2)
+          #   return goal_coords
 
-        color_map = ['b', 'g', 'r', 'c', 'm', 'y', 'k']
+          # goal_coord_list = [_sample_goal() for _ in range(50)]
 
-        average_reward_all_goals = []
-        _, ax1 = plt.subplots(1, 1)
-        ax1.set_xlim(-20, 20)
-        ax1.set_ylim(-20, 20)
+          for goal_idx, goal_coord in enumerate(goal_coord_list):
+            # for goal_idx in range(1):
+            print('Trying to reach the goal:', goal_coord)
+            # eval_plan_env = video_wrapper.VideoWrapper(
+            #     get_environment(env_name=FLAGS.environment + '_goal')
+            #     base_path=eval_dir,
+            #     base_name=save_label + '_' + str(goal_idx)))
+            # goal_coord = np.array(item[2:])
+            eval_plan_env = get_environment(env_name=FLAGS.environment + '_goal')
+            # _, (ax1, ax2) = plt.subplots(1, 2)
+            # ax1.set_xlim(-12, 12)
+            # ax1.set_ylim(-12, 12)
+            # ax2.set_xlim(-1, 1)
+            # ax2.set_ylim(-1, 1)
+            ax1.plot(goal_coord[0], goal_coord[1], marker='x', color='k')
+            reward_list = []
 
-        final_text = open(os.path.join(eval_dir, 'eval_data.txt'), 'w')
+            def _steps_to_goal(dist_array):
+              for idx in range(len(dist_array)):
+                if -dist_array[idx] < 1.5:
+                  return idx
+              return -1
 
-        # goal_list = []
-        # for r in range(4, 50):
-        #   for _ in range(10):
-        #     theta = np.random.uniform(-np.pi, np.pi)
-        #     goal_x = r * np.cos(theta)
-        #     goal_y = r * np.sin(theta)
-        #     goal_list.append([r, theta, goal_x, goal_y])
+            for _ in range(1):
+              reward, actual_coords, primitives, distance_to_goal_array = planning_fn(
+                  eval_plan_env, agent.skill_dynamics, eval_policy,
+                  latent_action_space_size=FLAGS.num_skills,
+                  episode_horizon=FLAGS.max_env_steps,
+                  planning_horizon=FLAGS.planning_horizon,
+                  primitive_horizon=FLAGS.primitive_horizon,
+                  num_candidate_sequences=FLAGS.num_candidate_sequences,
+                  refine_steps=FLAGS.refine_steps,
+                  mppi_gamma=FLAGS.mppi_gamma,
+                  prior_type=FLAGS.prior_type,
+                  smoothing_beta=FLAGS.smoothing_beta,
+                  top_primitives=FLAGS.top_primitives
+              )
+              reward /= (FLAGS.max_env_steps * np.linalg.norm(goal_coord))
+              ax1.plot(
+                  actual_coords[:, 0],
+                  actual_coords[:, 1],
+                  color_map[goal_idx % len(color_map)],
+                  linewidth=1)
+              # ax2.plot(
+              #     primitives[:, 0],
+              #     primitives[:, 1],
+              #     marker='x',
+              #     color=color_map[try_idx % len(color_map)],
+              #     linewidth=1)
+              final_text.write(','.join([
+                  str(item) for item in [
+                      goal_coord[0],
+                      goal_coord[1],
+                      reward,
+                      _steps_to_goal(distance_to_goal_array),
+                      distance_to_goal_array[-3],
+                      distance_to_goal_array[-2],
+                      distance_to_goal_array[-1],
+                  ]
+              ]) + '\n')
+              print(reward)
+              reward_list.append(reward)
 
-        # def _sample_goal():
-        #   goal_coords = np.random.uniform(0, 5, size=2)
-        #   # while np.linalg.norm(goal_coords) < np.linalg.norm([10., 10.]):
-        #   #   goal_coords = np.random.uniform(-25, 25, size=2)
-        #   return goal_coords
+            eval_plan_env.close()
+            average_reward_all_goals.append(np.mean(reward_list))
+            print('Average reward:', np.mean(reward_list))
 
-        # goal_coord_list = [_sample_goal() for _ in range(50)]
+          final_text.close()
+          # to save images while writing to CNS
+          buf = io.BytesIO()
+          plt.savefig(buf, dpi=600, bbox_inches='tight')
+          buf.seek(0)
+          image = tf.io.gfile.GFile(os.path.join(eval_dir, save_label + '.png'), 'w')
+          image.write(buf.read(-1))
+          plt.clf()
 
-        for goal_idx, goal_coord in enumerate(goal_coord_list):
-          # for goal_idx in range(1):
-          print('Trying to reach the goal:', goal_coord)
-          # eval_plan_env = video_wrapper.VideoWrapper(
-          #     get_environment(env_name=FLAGS.environment + '_goal')
-          #     base_path=eval_dir,
-          #     base_name=save_label + '_' + str(goal_idx)))
-          # goal_coord = np.array(item[2:])
-          eval_plan_env = get_environment(env_name=FLAGS.environment + '_goal')
-          # _, (ax1, ax2) = plt.subplots(1, 2)
-          # ax1.set_xlim(-12, 12)
-          # ax1.set_ylim(-12, 12)
-          # ax2.set_xlim(-1, 1)
-          # ax2.set_ylim(-1, 1)
-          ax1.plot(goal_coord[0], goal_coord[1], marker='x', color='k')
-          reward_list = []
+          # for iter_idx in range(1, actual_coords.shape[0]):
+          #   _, ax1 = plt.subplots(1, 1)
+          #   ax1.set_xlim(-2, 15)
+          #   ax1.set_ylim(-2, 15)
+          #   ax1.plot(
+          #       actual_coords[:iter_idx, 0],
+          #       actual_coords[:iter_idx, 1],
+          #       linewidth=1.2)
+          #   ax1.scatter(
+          #       np.array(goal_coord_list)[:, 0],
+          #       np.array(goal_coord_list)[:, 1],
+          #       marker='x',
+          #       color='k')
+          #   buf = io.BytesIO()
+          #   plt.savefig(buf, dpi=200, bbox_inches='tight')
+          #   buf.seek(0)
+          #   image = tf.io.gfile.GFile(
+          #       os.path.join(eval_dir,
+          #                    save_label + '_' + '%04d' % (iter_idx) + '.png'),
+          #       'w')
+          #   image.write(buf.read(-1))
+          #   plt.clf()
 
-          def _steps_to_goal(dist_array):
-            for idx in range(len(dist_array)):
-              if -dist_array[idx] < 1.5:
-                return idx
-            return -1
+          plt.close()
+          print('Average reward for all goals:', average_reward_all_goals)
 
-          for _ in range(1):
-            reward, actual_coords, primitives, distance_to_goal_array = planning_fn(
-                eval_plan_env, agent.skill_dynamics, eval_policy,
-                latent_action_space_size=FLAGS.num_skills,
-                episode_horizon=FLAGS.max_env_steps,
-                planning_horizon=FLAGS.planning_horizon,
-                primitive_horizon=FLAGS.primitive_horizon,
-                num_candidate_sequences=FLAGS.num_candidate_sequences,
-                refine_steps=FLAGS.refine_steps,
-                mppi_gamma=FLAGS.mppi_gamma,
-                prior_type=FLAGS.prior_type,
-                smoothing_beta=FLAGS.smoothing_beta,
-                top_primitives=FLAGS.top_primitives
-            )
-            reward /= (FLAGS.max_env_steps * np.linalg.norm(goal_coord))
-            ax1.plot(
-                actual_coords[:, 0],
-                actual_coords[:, 1],
-                color_map[goal_idx % len(color_map)],
-                linewidth=1)
-            # ax2.plot(
-            #     primitives[:, 0],
-            #     primitives[:, 1],
-            #     marker='x',
-            #     color=color_map[try_idx % len(color_map)],
-            #     linewidth=1)
-            final_text.write(','.join([
-                str(item) for item in [
-                    goal_coord[0],
-                    goal_coord[1],
-                    reward,
-                    _steps_to_goal(distance_to_goal_array),
-                    distance_to_goal_array[-3],
-                    distance_to_goal_array[-2],
-                    distance_to_goal_array[-1],
-                ]
-            ]) + '\n')
-            print(reward)
-            reward_list.append(reward)
+    # do POET Things
 
-          eval_plan_env.close()
-          average_reward_all_goals.append(np.mean(reward_list))
-          print('Average reward:', np.mean(reward_list))
-
-        final_text.close()
-        # to save images while writing to CNS
-        buf = io.BytesIO()
-        plt.savefig(buf, dpi=600, bbox_inches='tight')
-        buf.seek(0)
-        image = tf.io.gfile.GFile(os.path.join(eval_dir, save_label + '.png'), 'w')
-        image.write(buf.read(-1))
-        plt.clf()
-
-        # for iter_idx in range(1, actual_coords.shape[0]):
-        #   _, ax1 = plt.subplots(1, 1)
-        #   ax1.set_xlim(-2, 15)
-        #   ax1.set_ylim(-2, 15)
-        #   ax1.plot(
-        #       actual_coords[:iter_idx, 0],
-        #       actual_coords[:iter_idx, 1],
-        #       linewidth=1.2)
-        #   ax1.scatter(
-        #       np.array(goal_coord_list)[:, 0],
-        #       np.array(goal_coord_list)[:, 1],
-        #       marker='x',
-        #       color='k')
-        #   buf = io.BytesIO()
-        #   plt.savefig(buf, dpi=200, bbox_inches='tight')
-        #   buf.seek(0)
-        #   image = tf.io.gfile.GFile(
-        #       os.path.join(eval_dir,
-        #                    save_label + '_' + '%04d' % (iter_idx) + '.png'),
-        #       'w')
-        #   image.write(buf.read(-1))
-        #   plt.clf()
-
-        plt.close()
-        print('Average reward for all goals:', average_reward_all_goals)
+    print('End of POET loop')
 
 
 if __name__ == '__main__':
