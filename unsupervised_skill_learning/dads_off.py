@@ -64,6 +64,8 @@ from envs import dkitty_redesign
 from envs import hand_block
 
 from envs import bipedal_walker
+from envs import bipedal_walker_custom
+from envs.bipedal_walker_custom import Env_config
 import pyvirtualdisplay
 
 from lib import py_tf_policy
@@ -296,6 +298,19 @@ def get_environment(env_name='point_mass'):
   elif env_name == 'bipedal_walker':
     pyvirtualdisplay.Display(visible=0, size=(1400, 900)).start()
     env = bipedal_walker.BipedalWalker()
+  elif env_name == 'bipedal_walker_custom':
+    pyvirtualdisplay.Display(visible=0, size=(1400, 900)).start()
+    DEFAULT_ENV = Env_config(
+      name='default_env',
+      ground_roughness=0,
+      pit_gap=[],
+      stump_width=[],
+      stump_height=[],
+      stump_float=[],
+      stair_height=[],
+      stair_width=[],
+      stair_steps=[])
+    env = bipedal_walker_custom.BipedalWalkerCustom(DEFAULT_ENV)
   else:
     # note this is already wrapped, no need to wrap again
     env = suite_mujoco.load(env_name)
@@ -516,9 +531,9 @@ def process_observation(observation):
     # x, y, z of the center of the block
     elif FLAGS.environment in ['HandBlock']:
       red_obs = [
-          _shape_based_observation_processing(observation, 
+          _shape_based_observation_processing(observation,
                                               observation.shape[-1] - 7),
-          _shape_based_observation_processing(observation, 
+          _shape_based_observation_processing(observation,
                                               observation.shape[-1] - 6),
           _shape_based_observation_processing(observation,
                                               observation.shape[-1] - 5)
@@ -1081,6 +1096,253 @@ def eval_mppi(
       chosen_primitives), distance_to_goal_array
 
 
+def setup_env():
+  # environment related stuff
+  py_env = get_environment(env_name=FLAGS.environment)
+  py_env = wrap_env(
+    skill_wrapper.SkillWrapper(
+      py_env,
+      num_latent_skills=FLAGS.num_skills,
+      skill_type=FLAGS.skill_type,
+      preset_skill=None,
+      min_steps_before_resample=FLAGS.min_steps_before_resample,
+      resample_prob=FLAGS.resample_prob),
+    max_episode_steps=FLAGS.max_env_steps)
+  return py_env
+
+
+def setup_spec(py_env):
+  # all specifications required for all networks and agents
+  py_action_spec = py_env.action_spec()
+  tf_action_spec = tensor_spec.from_spec(
+    py_action_spec)  # policy, critic action spec
+  env_obs_spec = py_env.observation_spec()
+  py_env_time_step_spec = ts.time_step_spec(
+    env_obs_spec)  # replay buffer time_step spec
+  if observation_omit_size > 0:
+    agent_obs_spec = array_spec.BoundedArraySpec(
+      (env_obs_spec.shape[0] - observation_omit_size,),
+      env_obs_spec.dtype,
+      minimum=env_obs_spec.minimum,
+      maximum=env_obs_spec.maximum,
+      name=env_obs_spec.name)  # policy, critic observation spec
+  else:
+    agent_obs_spec = env_obs_spec
+  py_agent_time_step_spec = ts.time_step_spec(
+    agent_obs_spec)  # policy, critic time_step spec
+  tf_agent_time_step_spec = tensor_spec.from_spec(py_agent_time_step_spec)
+
+  if not FLAGS.reduced_observation:
+    skill_dynamics_observation_size = (
+        py_env_time_step_spec.observation.shape[0] - FLAGS.num_skills)
+  else:
+    skill_dynamics_observation_size = FLAGS.reduced_observation
+  return tf_agent_time_step_spec, tf_action_spec, skill_dynamics_observation_size,\
+         py_action_spec, py_env_time_step_spec
+
+
+def setup_dads(save_dir, global_step, tf_agent_time_step_spec, tf_action_spec, skill_dynamics_observation_size):
+  # TODO(architsh): Shift co-ordinate hiding to actor_net and critic_net (good for futher image based processing as well)
+  actor_net = actor_distribution_network.ActorDistributionNetwork(
+    tf_agent_time_step_spec.observation,
+    tf_action_spec,
+    fc_layer_params=(FLAGS.hidden_layer_size,) * 2,
+    continuous_projection_net=_normal_projection_net)
+
+  critic_net = critic_network.CriticNetwork(
+    (tf_agent_time_step_spec.observation, tf_action_spec),
+    observation_fc_layer_params=None,
+    action_fc_layer_params=None,
+    joint_fc_layer_params=(FLAGS.hidden_layer_size,) * 2)
+
+  if FLAGS.skill_dynamics_relabel_type is not None and 'importance_sampling' in FLAGS.skill_dynamics_relabel_type and FLAGS.is_clip_eps > 1.0:
+    reweigh_batches_flag = True
+  else:
+    reweigh_batches_flag = False
+
+  agent = dads_agent.DADSAgent(
+    # DADS parameters
+    save_dir,
+    skill_dynamics_observation_size,
+    observation_modify_fn=process_observation,
+    restrict_input_size=observation_omit_size,
+    latent_size=FLAGS.num_skills,
+    latent_prior=FLAGS.skill_type,
+    prior_samples=FLAGS.random_skills,
+    fc_layer_params=(FLAGS.hidden_layer_size,) * 2,
+    normalize_observations=FLAGS.normalize_data,
+    network_type=FLAGS.graph_type,
+    num_mixture_components=FLAGS.num_components,
+    fix_variance=FLAGS.fix_variance,
+    reweigh_batches=reweigh_batches_flag,
+    skill_dynamics_learning_rate=FLAGS.skill_dynamics_lr,
+    # SAC parameters
+    time_step_spec=tf_agent_time_step_spec,
+    action_spec=tf_action_spec,
+    actor_network=actor_net,
+    critic_network=critic_net,
+    target_update_tau=0.005,
+    target_update_period=1,
+    actor_optimizer=tf.compat.v1.train.AdamOptimizer(
+      learning_rate=FLAGS.agent_lr),
+    critic_optimizer=tf.compat.v1.train.AdamOptimizer(
+      learning_rate=FLAGS.agent_lr),
+    alpha_optimizer=tf.compat.v1.train.AdamOptimizer(
+      learning_rate=FLAGS.agent_lr),
+    td_errors_loss_fn=tf.compat.v1.losses.mean_squared_error,
+    gamma=FLAGS.agent_gamma,
+    reward_scale_factor=1. /
+                        (FLAGS.agent_entropy + 1e-12),
+    gradient_clipping=None,
+    debug_summaries=FLAGS.debug,
+    train_step_counter=global_step)
+  return agent
+
+
+def setup_policys(agent, py_action_spec, py_env_time_step_spec, save_dir, global_step):
+  # evaluation policy
+  eval_policy = py_tf_policy.PyTFPolicy(agent.policy)
+
+  collect_policy = None
+  # collection policy
+  if FLAGS.collect_policy == 'default':
+    collect_policy = py_tf_policy.PyTFPolicy(agent.collect_policy)
+  elif FLAGS.collect_policy == 'ou_noise':
+    collect_policy = py_tf_policy.PyTFPolicy(
+      ou_noise_policy.OUNoisePolicy(
+        agent.collect_policy, ou_stddev=0.2, ou_damping=0.15))
+
+  # relabelling policy deals with batches of data, unlike collect and eval
+  relabel_policy = py_tf_policy.PyTFPolicy(agent.collect_policy)
+  return eval_policy, collect_policy, relabel_policy
+
+
+def setup_replay(agent, py_action_spec, py_env_time_step_spec, save_dir, global_step):
+  # constructing a replay buffer, need a python spec
+  policy_step_spec = policy_step.PolicyStep(
+    action=py_action_spec, state=(), info=())
+
+  if FLAGS.skill_dynamics_relabel_type is not None and 'importance_sampling' in FLAGS.skill_dynamics_relabel_type and FLAGS.is_clip_eps > 1.0:
+    policy_step_spec = policy_step_spec._replace(
+      info=policy_step.set_log_probability(
+        policy_step_spec.info,
+        array_spec.ArraySpec(
+          shape=(), dtype=np.float32, name='action_log_prob')))
+
+  trajectory_spec = from_transition(py_env_time_step_spec, policy_step_spec,
+                                    py_env_time_step_spec)
+  capacity = FLAGS.replay_buffer_capacity
+  # for all the data collected
+  rbuffer = py_uniform_replay_buffer.PyUniformReplayBuffer(
+    capacity=capacity, data_spec=trajectory_spec)
+
+  on_buffer = None
+  if FLAGS.train_skill_dynamics_on_policy:
+    # for on-policy data (if something special is required)
+    on_buffer = py_uniform_replay_buffer.PyUniformReplayBuffer(
+      capacity=FLAGS.initial_collect_steps + FLAGS.collect_steps + 10,
+      data_spec=trajectory_spec)
+
+  # insert experience manually with relabelled rewards and skills
+  agent.build_agent_graph()
+  agent.build_skill_dynamics_graph()
+  agent.create_savers()
+
+  # saving this way requires the saver to be out the object
+  train_checkpointer = common.Checkpointer(
+    ckpt_dir=os.path.join(save_dir, 'agent'),
+    agent=agent,
+    global_step=global_step)
+  policy_checkpointer = common.Checkpointer(
+    ckpt_dir=os.path.join(save_dir, 'policy'),
+    policy=agent.policy,
+    global_step=global_step)
+  rb_checkpointer = common.Checkpointer(
+    ckpt_dir=os.path.join(save_dir, 'replay_buffer'),
+    max_to_keep=1,
+    replay_buffer=rbuffer)
+
+  return train_checkpointer, policy_checkpointer, rb_checkpointer, on_buffer, rbuffer
+
+
+def _process_episodic_data(ep_buffer, cur_data):
+  # maintain a buffer of episode lengths
+  ep_buffer[-1] += cur_data[0]
+  ep_buffer += cur_data[1:]
+
+  # only keep the last 100 episodes
+  if len(ep_buffer) > 101:
+    ep_buffer = ep_buffer[-101:]
+
+
+def _filter_trajectories(trajectory):
+  # remove invalid transitions from the replay buffer
+  # two consecutive samples in the buffer might not have been consecutive in the episode
+  valid_indices = (trajectory.step_type[:, 0] != 2)
+
+  return nest.map_structure(lambda x: x[valid_indices], trajectory)
+
+
+def print_collection_time(py_env, time_step, collect_policy, rbuffer, on_buffer, sample_count):
+  start_time = time.time()
+  time_step, collect_info = collect_experience(
+    py_env,
+    time_step,
+    collect_policy,
+    buffer_list=[rbuffer] if not FLAGS.train_skill_dynamics_on_policy
+    else [rbuffer, on_buffer],
+    num_steps=FLAGS.initial_collect_steps)
+  _process_episodic_data(episode_size_buffer,
+                         collect_info['episode_sizes'])
+  _process_episodic_data(episode_return_buffer,
+                         collect_info['episode_return'])
+  sample_count += FLAGS.initial_collect_steps
+  initial_collect_time = time.time() - start_time
+  print('Initial data collection time:', initial_collect_time)
+  return sample_count
+
+
+def train_skill_dynamics(rbuffer, skill_dynamics_buffer, relabel_policy, agent, on_buffer):
+  for _ in range(1 if FLAGS.clear_buffer_every_iter else FLAGS.skill_dyn_train_steps):
+    if FLAGS.clear_buffer_every_iter:
+      trajectory_sample = rbuffer.gather_all_transitions()
+    else:
+      trajectory_sample = skill_dynamics_buffer.get_next(
+        sample_batch_size=FLAGS.skill_dyn_batch_size, num_steps=2)
+    trajectory_sample = _filter_trajectories(trajectory_sample)
+
+    # is_weights is None usually, unless relabelling involves importance_sampling
+    trajectory_sample, is_weights = relabel_skill(
+      trajectory_sample,
+      relabel_type=FLAGS.skill_dynamics_relabel_type,
+      cur_policy=relabel_policy,
+      cur_skill_dynamics=agent.skill_dynamics)
+    input_obs = process_observation(
+      trajectory_sample.observation[:, 0, :-FLAGS.num_skills])
+    cur_skill = trajectory_sample.observation[:, 0, -FLAGS.num_skills:]
+    target_obs = process_observation(
+      trajectory_sample.observation[:, 1, :-FLAGS.num_skills])
+    if FLAGS.clear_buffer_every_iter:
+      agent.skill_dynamics.train(
+        input_obs,
+        cur_skill,
+        target_obs,
+        batch_size=FLAGS.skill_dyn_batch_size,
+        batch_weights=is_weights,
+        num_steps=FLAGS.skill_dyn_train_steps)
+    else:
+      agent.skill_dynamics.train(
+        input_obs,
+        cur_skill,
+        target_obs,
+        batch_size=-1,
+        batch_weights=is_weights,
+        num_steps=1)
+
+  if FLAGS.train_skill_dynamics_on_policy:
+    on_buffer.clear()
+
+
 def main(_):
   # setting up
   start_time = time.time()
@@ -1093,7 +1355,7 @@ def main(_):
   if not tf.io.gfile.exists(root_dir):
     tf.io.gfile.makedirs(root_dir)
   log_dir = os.path.join(root_dir, FLAGS.environment)
-  
+
   if not tf.io.gfile.exists(log_dir):
     tf.io.gfile.makedirs(log_dir)
   save_dir = os.path.join(log_dir, 'models')
@@ -1120,166 +1382,27 @@ def main(_):
 
   global_step = tf.compat.v1.train.get_or_create_global_step()
   with tf.compat.v2.summary.record_if(True):
-    # environment related stuff
-    py_env = get_environment(env_name=FLAGS.environment)
-    py_env = wrap_env(
-        skill_wrapper.SkillWrapper(
-            py_env,
-            num_latent_skills=FLAGS.num_skills,
-            skill_type=FLAGS.skill_type,
-            preset_skill=None,
-            min_steps_before_resample=FLAGS.min_steps_before_resample,
-            resample_prob=FLAGS.resample_prob),
-        max_episode_steps=FLAGS.max_env_steps)
 
-    # all specifications required for all networks and agents
-    py_action_spec = py_env.action_spec()
-    tf_action_spec = tensor_spec.from_spec(
-        py_action_spec)  # policy, critic action spec
-    env_obs_spec = py_env.observation_spec()
-    py_env_time_step_spec = ts.time_step_spec(
-        env_obs_spec)  # replay buffer time_step spec
-    if observation_omit_size > 0:
-      agent_obs_spec = array_spec.BoundedArraySpec(
-          (env_obs_spec.shape[0] - observation_omit_size,),
-          env_obs_spec.dtype,
-          minimum=env_obs_spec.minimum,
-          maximum=env_obs_spec.maximum,
-          name=env_obs_spec.name)  # policy, critic observation spec
-    else:
-      agent_obs_spec = env_obs_spec
-    py_agent_time_step_spec = ts.time_step_spec(
-        agent_obs_spec)  # policy, critic time_step spec
-    tf_agent_time_step_spec = tensor_spec.from_spec(py_agent_time_step_spec)
-
-    if not FLAGS.reduced_observation:
-      skill_dynamics_observation_size = (
-          py_env_time_step_spec.observation.shape[0] - FLAGS.num_skills)
-    else:
-      skill_dynamics_observation_size = FLAGS.reduced_observation
-
-    # TODO(architsh): Shift co-ordinate hiding to actor_net and critic_net (good for futher image based processing as well)
-    actor_net = actor_distribution_network.ActorDistributionNetwork(
-        tf_agent_time_step_spec.observation,
-        tf_action_spec,
-        fc_layer_params=(FLAGS.hidden_layer_size,) * 2,
-        continuous_projection_net=_normal_projection_net)
-
-    critic_net = critic_network.CriticNetwork(
-        (tf_agent_time_step_spec.observation, tf_action_spec),
-        observation_fc_layer_params=None,
-        action_fc_layer_params=None,
-        joint_fc_layer_params=(FLAGS.hidden_layer_size,) * 2)
-
-    if FLAGS.skill_dynamics_relabel_type is not None and 'importance_sampling' in FLAGS.skill_dynamics_relabel_type and FLAGS.is_clip_eps > 1.0:
-      reweigh_batches_flag = True
-    else:
-      reweigh_batches_flag = False
-
-    agent = dads_agent.DADSAgent(
-        # DADS parameters
-        save_dir,
-        skill_dynamics_observation_size,
-        observation_modify_fn=process_observation,
-        restrict_input_size=observation_omit_size,
-        latent_size=FLAGS.num_skills,
-        latent_prior=FLAGS.skill_type,
-        prior_samples=FLAGS.random_skills,
-        fc_layer_params=(FLAGS.hidden_layer_size,) * 2,
-        normalize_observations=FLAGS.normalize_data,
-        network_type=FLAGS.graph_type,
-        num_mixture_components=FLAGS.num_components,
-        fix_variance=FLAGS.fix_variance,
-        reweigh_batches=reweigh_batches_flag,
-        skill_dynamics_learning_rate=FLAGS.skill_dynamics_lr,
-        # SAC parameters
-        time_step_spec=tf_agent_time_step_spec,
-        action_spec=tf_action_spec,
-        actor_network=actor_net,
-        critic_network=critic_net,
-        target_update_tau=0.005,
-        target_update_period=1,
-        actor_optimizer=tf.compat.v1.train.AdamOptimizer(
-            learning_rate=FLAGS.agent_lr),
-        critic_optimizer=tf.compat.v1.train.AdamOptimizer(
-            learning_rate=FLAGS.agent_lr),
-        alpha_optimizer=tf.compat.v1.train.AdamOptimizer(
-            learning_rate=FLAGS.agent_lr),
-        td_errors_loss_fn=tf.compat.v1.losses.mean_squared_error,
-        gamma=FLAGS.agent_gamma,
-        reward_scale_factor=1. /
-        (FLAGS.agent_entropy + 1e-12),
-        gradient_clipping=None,
-        debug_summaries=FLAGS.debug,
-        train_step_counter=global_step)
-
-    # evaluation policy
-    eval_policy = py_tf_policy.PyTFPolicy(agent.policy)
-
-    # collection policy
-    if FLAGS.collect_policy == 'default':
-      collect_policy = py_tf_policy.PyTFPolicy(agent.collect_policy)
-    elif FLAGS.collect_policy == 'ou_noise':
-      collect_policy = py_tf_policy.PyTFPolicy(
-          ou_noise_policy.OUNoisePolicy(
-              agent.collect_policy, ou_stddev=0.2, ou_damping=0.15))
-
-    # relabelling policy deals with batches of data, unlike collect and eval
-    relabel_policy = py_tf_policy.PyTFPolicy(agent.collect_policy)
-
-    # constructing a replay buffer, need a python spec
-    policy_step_spec = policy_step.PolicyStep(
-        action=py_action_spec, state=(), info=())
-
-    if FLAGS.skill_dynamics_relabel_type is not None and 'importance_sampling' in FLAGS.skill_dynamics_relabel_type and FLAGS.is_clip_eps > 1.0:
-      policy_step_spec = policy_step_spec._replace(
-          info=policy_step.set_log_probability(
-              policy_step_spec.info,
-              array_spec.ArraySpec(
-                  shape=(), dtype=np.float32, name='action_log_prob')))
-
-    trajectory_spec = from_transition(py_env_time_step_spec, policy_step_spec,
-                                      py_env_time_step_spec)
-    capacity = FLAGS.replay_buffer_capacity
-    # for all the data collected
-    rbuffer = py_uniform_replay_buffer.PyUniformReplayBuffer(
-        capacity=capacity, data_spec=trajectory_spec)
-
-    if FLAGS.train_skill_dynamics_on_policy:
-      # for on-policy data (if something special is required)
-      on_buffer = py_uniform_replay_buffer.PyUniformReplayBuffer(
-          capacity=FLAGS.initial_collect_steps + FLAGS.collect_steps + 10,
-          data_spec=trajectory_spec)
-
-    # insert experience manually with relabelled rewards and skills
-    agent.build_agent_graph()
-    agent.build_skill_dynamics_graph()
-    agent.create_savers()
-
-    # saving this way requires the saver to be out the object
-    train_checkpointer = common.Checkpointer(
-        ckpt_dir=os.path.join(save_dir, 'agent'),
-        agent=agent,
-        global_step=global_step)
-    policy_checkpointer = common.Checkpointer(
-        ckpt_dir=os.path.join(save_dir, 'policy'),
-        policy=agent.policy,
-        global_step=global_step)
-    rb_checkpointer = common.Checkpointer(
-        ckpt_dir=os.path.join(save_dir, 'replay_buffer'),
-        max_to_keep=1,
-        replay_buffer=rbuffer)
+    # Setup environment
+    py_env = setup_env()
+    tf_agent_time_step_spec, tf_action_spec, skill_dynamics_observation_size, \
+    py_action_spec, py_env_time_step_spec = setup_spec(py_env)
+    agent = setup_dads(save_dir, global_step, tf_agent_time_step_spec, tf_action_spec, skill_dynamics_observation_size)
+    eval_policy, collect_policy, relabel_policy = setup_policys(agent, py_action_spec,
+                                                                py_env_time_step_spec, save_dir, global_step)
+    train_checkpointer, policy_checkpointer,\
+    rb_checkpointer, on_buffer, rbuffer = setup_replay(agent, py_action_spec, py_env_time_step_spec,
+                                                       save_dir, global_step)
 
     setup_time = time.time() - start_time
     print('Setup time:', setup_time)
-
     with tf.compat.v1.Session().as_default() as sess:
       train_checkpointer.initialize_or_restore(sess)
       rb_checkpointer.initialize_or_restore(sess)
       agent.set_sessions(
           initialize_or_restore_skill_dynamics=True, session=sess)
 
-      meta_start_time = time.time()
+      meta_start_time = time.time()  # overall start time
       if FLAGS.run_train:
 
         train_writer = tf.compat.v1.summary.FileWriter(
@@ -1291,38 +1414,8 @@ def main(_):
         episode_size_buffer.append(0)
         episode_return_buffer.append(0.)
 
-        # maintain a buffer of episode lengths
-        def _process_episodic_data(ep_buffer, cur_data):
-          ep_buffer[-1] += cur_data[0]
-          ep_buffer += cur_data[1:]
-
-          # only keep the last 100 episodes
-          if len(ep_buffer) > 101:
-            ep_buffer = ep_buffer[-101:]
-
-        # remove invalid transitions from the replay buffer
-        def _filter_trajectories(trajectory):
-          # two consecutive samples in the buffer might not have been consecutive in the episode
-          valid_indices = (trajectory.step_type[:, 0] != 2)
-
-          return nest.map_structure(lambda x: x[valid_indices], trajectory)
-
         if iter_count == 0:
-          start_time = time.time()
-          time_step, collect_info = collect_experience(
-              py_env,
-              time_step,
-              collect_policy,
-              buffer_list=[rbuffer] if not FLAGS.train_skill_dynamics_on_policy
-              else [rbuffer, on_buffer],
-              num_steps=FLAGS.initial_collect_steps)
-          _process_episodic_data(episode_size_buffer,
-                                 collect_info['episode_sizes'])
-          _process_episodic_data(episode_return_buffer,
-                                 collect_info['episode_return'])
-          sample_count += FLAGS.initial_collect_steps
-          initial_collect_time = time.time() - start_time
-          print('Initial data collection time:', initial_collect_time)
+          sample_count = print_collection_time(py_env, time_step, collect_policy, rbuffer, on_buffer, sample_count)
 
         agent_end_train_time = time.time()
         while iter_count < FLAGS.num_epochs:
@@ -1343,6 +1436,8 @@ def main(_):
 
           collect_start_time = time.time()
           print('intermediate time:', collect_start_time - agent_end_train_time)
+
+          # Collect experience for training
           time_step, collect_info = collect_experience(
               py_env,
               time_step,
@@ -1380,45 +1475,7 @@ def main(_):
             skill_dynamics_buffer = on_buffer
 
           # TODO(architsh): clear_buffer_every_iter needs to fix these as well
-          for _ in range(1 if FLAGS.clear_buffer_every_iter else FLAGS
-                         .skill_dyn_train_steps):
-            if FLAGS.clear_buffer_every_iter:
-              trajectory_sample = rbuffer.gather_all_transitions()
-            else:
-              trajectory_sample = skill_dynamics_buffer.get_next(
-                  sample_batch_size=FLAGS.skill_dyn_batch_size, num_steps=2)
-            trajectory_sample = _filter_trajectories(trajectory_sample)
-
-            # is_weights is None usually, unless relabelling involves importance_sampling
-            trajectory_sample, is_weights = relabel_skill(
-                trajectory_sample,
-                relabel_type=FLAGS.skill_dynamics_relabel_type,
-                cur_policy=relabel_policy,
-                cur_skill_dynamics=agent.skill_dynamics)
-            input_obs = process_observation(
-                trajectory_sample.observation[:, 0, :-FLAGS.num_skills])
-            cur_skill = trajectory_sample.observation[:, 0, -FLAGS.num_skills:]
-            target_obs = process_observation(
-                trajectory_sample.observation[:, 1, :-FLAGS.num_skills])
-            if FLAGS.clear_buffer_every_iter:
-              agent.skill_dynamics.train(
-                  input_obs,
-                  cur_skill,
-                  target_obs,
-                  batch_size=FLAGS.skill_dyn_batch_size,
-                  batch_weights=is_weights,
-                  num_steps=FLAGS.skill_dyn_train_steps)
-            else:
-              agent.skill_dynamics.train(
-                  input_obs,
-                  cur_skill,
-                  target_obs,
-                  batch_size=-1,
-                  batch_weights=is_weights,
-                  num_steps=1)
-
-          if FLAGS.train_skill_dynamics_on_policy:
-            on_buffer.clear()
+          train_skill_dynamics(rbuffer, skill_dynamics_buffer, relabel_policy, agent, on_buffer)
 
           skill_dynamics_end_train_time = time.time()
           print('skill_dynamics train time:',
@@ -1456,6 +1513,7 @@ def main(_):
             if FLAGS.skill_dynamics_relabel_type is not None and 'importance_sampling' in FLAGS.skill_dynamics_relabel_type:
               trajectory_sample = trajectory_sample._replace(policy_info=())
 
+            # train agent itself with SAC on different reward
             if not FLAGS.clear_buffer_every_iter:
               dads_reward, info = agent.train_loop(
                   trajectory_sample,
@@ -1578,7 +1636,7 @@ def main(_):
         save_label = 'goal_'
         if 'discrete' in FLAGS.skill_type:
           planning_fn = eval_planning
-          
+
         else:
           planning_fn = eval_mppi
 
