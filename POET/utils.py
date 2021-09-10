@@ -4,4 +4,5 @@ Env_performance = namedtuple('Env_performance', [
   'name',
   'parent',
   'tot_return',
+  'active_env'
 ])

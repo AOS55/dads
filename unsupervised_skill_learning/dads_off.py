@@ -34,6 +34,8 @@ import numpy as np
 import tensorflow as tf
 import tensorflow_probability as tfp
 
+import glob
+
 from tf_agents.agents.ddpg import critic_network
 from tf_agents.agents.sac import sac_agent
 from tf_agents.environments import suite_mujoco
@@ -242,13 +244,13 @@ flags.DEFINE_integer('top_primitives', 5, 'Optimization parameter when using uni
 
 # global variables for this script
 observation_omit_size = 0
-goal_coord = np.array([10., 10.])  # assigns a goal co-ord even if unused by env being run
-sample_count = 0
-iter_count = 0
-poet_step = 0
-ea_pairs = {}
-episode_size_buffer = []
-episode_return_buffer = []
+# goal_coord = np.array([10., 10.])  # assigns a goal co-ord even if unused by env being run
+# sample_count = 0
+# iter_count = 0
+# poet_step = 0
+# ea_pairs = {}
+# episode_size_buffer = []
+# episode_return_buffer = []
 
 # add a flag for state dependent std
 def _normal_projection_net(action_spec, init_means_output_factor=0.1):
@@ -1296,7 +1298,8 @@ def _filter_trajectories(trajectory):
   return nest.map_structure(lambda x: x[valid_indices], trajectory)
 
 
-def print_collection_time(py_env, time_step, collect_policy, rbuffer, on_buffer, sample_count):
+def print_collection_time(py_env, time_step, collect_policy, rbuffer, on_buffer, sample_count,
+                          episode_size_buffer, episode_return_buffer):
   start_time = time.time()
   time_step, collect_info = collect_experience(
     py_env,
@@ -1384,7 +1387,8 @@ def train_dads(log_dir, sess, train_summary_writer, py_env, episode_size_buffer,
   episode_return_buffer.append(0.)
 
   if iter_count == 0:
-    sample_count = print_collection_time(py_env, time_step, collect_policy, rbuffer, on_buffer, sample_count)
+    sample_count = print_collection_time(py_env, time_step, collect_policy, rbuffer, on_buffer,
+                                         sample_count, episode_size_buffer, episode_return_buffer)
 
   agent_end_train_time = time.time()
   while iter_count < FLAGS.num_epochs:
@@ -1794,24 +1798,51 @@ def read_json(json_file_name):
   return dictionary
 
 
-def write_env_json(env_data, env_path):
-  json_file_name = os.path.join(env_path, 'env.json')
+def write_config_json(config_data, env_dir):
+  json_file_name = os.path.join(env_dir, 'config.json')
   with open(json_file_name, 'w') as out_file:
-    json.dump(env_data._asdict(), out_file)
+    json.dump(config_data._asdict(), out_file)
 
 
-def read_env_json(env_path):
-  json_file_name = os.path.join(env_path, 'env.json')
+def write_perf_json(perf_data, env_dir):
+  json_file_name = os.path.join(env_dir, 'perf.json')
+  with open(json_file_name, 'w') as out_file:
+    json.dump(perf_data._asdict(), out_file)
+
+
+def write_tree_json(tree_data, log_dir):
+  json_file_name = os.path.join(log_dir, 'tree.json')
+  if os.path.exists(json_file_name):
+    os.remove(json_file_name)
+  with open(json_file_name, 'w') as out_file:
+    json.dump(tree_data, out_file)
+
+
+def read_env_json(env_dir):
+  json_file_name = os.path.join(env_dir, 'env.json')
   with open(json_file_name) as json_file:
     env = json.load(json_file)
   env = Env_config(**env)
   return env
 
 
+def setup_env_list(log_dir):
+  env_list = []
+  for perf_file in glob.glob(os.path.join(log_dir, '*/perf.json')):
+    with open(perf_file) as json_file:
+      perf = json.load(json_file)
+    perf = Env_performance(**perf)
+    if perf.active_env:
+      env_list.append(perf.name)
+  return env_list
+
+
 def setup_poet(init_env, log_dir):
   # start from last training
   try:
-    env_tree = read_json(os.path.join(log_dir, 'env-tree.json'))
+    env_tree = read_json(os.path.join(log_dir, 'tree.json'))
+    env_list = setup_env_list(log_dir)
+
   # begin from start
   except:
     env_name = init_env.name
@@ -1819,14 +1850,18 @@ def setup_poet(init_env, log_dir):
     env_dir = os.path.join(log_dir, env_name)
     if not tf.io.gfile.exists(env_dir):
       tf.io.gfile.makedirs(env_dir)
-    write_env_json(init_env, env_dir)
+    write_config_json(init_env, env_dir)
     py_env = setup_env(init_env)
     tot_return = dads_algorithm(env_dir, py_env)
     perf = Env_performance(name=env_name,
                            parent=None,
-                           tot_return=tot_return)
+                           tot_return=tot_return,
+                           active_env=True)
+    write_perf_json(perf, env_dir)
+    write_tree_json(env_tree, log_dir)
+    env_list = [init_env.name]
 
-  return env_tree
+  return env_tree, env_list
 
 
 def main(_):
@@ -1835,8 +1870,8 @@ def main(_):
   tf.compat.v1.enable_resource_variables()
   tf.compat.v1.disable_eager_execution()
   logging.set_verbosity(logging.INFO)
-  global observation_omit_size, goal_coord, sample_count, iter_count, poet_step,\
-         episode_size_buffer, episode_return_buffer
+  # global observation_omit_size, goal_coord, sample_count, iter_count, poet_step,\
+  #        episode_size_buffer, episode_return_buffer
 
   # setup root dir and log_dir
   root_dir = os.path.abspath(os.path.expanduser(FLAGS.logdir))
@@ -1847,11 +1882,11 @@ def main(_):
   if not tf.io.gfile.exists(log_dir):
     tf.io.gfile.makedirs(log_dir)
 
-  env_tree = setup_poet(init_env=DEFAULT_ENV, log_dir=log_dir)
+  env_tree, env_list = setup_poet(init_env=DEFAULT_ENV, log_dir=log_dir)
 
   for poet_step in range(FLAGS.poet_epochs):
     if poet_step > 0 and poet_step % FLAGS.mutation_interval == 0:
-      ea_pairs = mutator.mutate_env(ea_pairs)
+      ea_pairs = mutator.mutate_env(env_list)
 
 
     # Make an env-agent pair and then go to that dir, env is static for dir
