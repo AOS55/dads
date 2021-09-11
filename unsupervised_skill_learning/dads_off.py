@@ -74,7 +74,10 @@ import pyvirtualdisplay
 from lib import py_tf_policy
 from lib import py_uniform_replay_buffer
 
-from POET.utils import Env_performance
+from POET.utils import Env_performance, read_json, write_config_json, write_perf_json,\
+  write_tree_json, read_config_json, read_perf_json
+from POET.mutator import eligible_to_reproduce, env_reproduce, mc_satisfied, rank_by_novelty,\
+  evaluate_candidates, remove_oldest
 
 FLAGS = flags.FLAGS
 nest = tf.nest
@@ -117,11 +120,16 @@ flags.DEFINE_string(
 flags.DEFINE_integer('record_freq', 100,
                      'Video recording frequency within the training loop')
 
-# POET hyperparameters
+# POET hyper-parameters
 flags.DEFINE_integer('poet_epochs', 20, 'Number of POET loops to run')
 flags.DEFINE_integer('mutation_interval', 2, 'How often to mutate the environment')
 flags.DEFINE_integer('transfer_interval', 4, 'How often to transfer skills across agents to increase diversity')
-flags.DEFINE_integer('env_size', 10, 'How many environments to maintain in mutation stage')
+flags.DEFINE_integer('env_capacity', 10, 'How many environments to maintain in mutation stage')
+# POET mutator hyper-parameters
+flags.DEFINE_integer('mutator_max_children', 3, 'Max number of children to use in mutator')
+flags.DEFINE_integer('mutator_max_admitted', 5, 'Max number of children admitted to the buffer per reproduction')
+flags.DEFINE_integer('master_seed', 2, 'seed to run with on random terrain generator')
+flags.DEFINE_list('env_categories', 'stump, pit, roughness', 'categories to mutate within the environment')
 
 # final evaluation after training is done
 flags.DEFINE_integer('run_eval', 0, 'Evaluate learnt skills')
@@ -1579,12 +1587,9 @@ def train_dads(log_dir, sess, train_summary_writer, py_env, episode_size_buffer,
   return np.mean(episode_return_buffer[:-1])  # return the average episodes at last train instance
 
 
-def eval_dads(log_dir, eval_policy, agent):
-  vid_dir = os.path.join(log_dir, 'videos', 'final_eval')
-  if not tf.io.gfile.exists(vid_dir):
-    tf.io.gfile.makedirs(vid_dir)
-  vid_name = FLAGS.vid_name
+def eval_dads(log_dir, eval_policy, agent, vid_dir):
 
+  vid_name = FLAGS.vid_name
   # generic skill evaluation
   if FLAGS.deterministic_eval or FLAGS.num_evals > 0:
     eval_loop(
@@ -1743,17 +1748,9 @@ def eval_dads(log_dir, eval_policy, agent):
   print('Average reward for all goals:', average_reward_all_goals)
 
 
-def dads_algorithm(log_dir, py_env):
-  save_dir = os.path.join(log_dir, 'models')
-  if not tf.io.gfile.exists(save_dir):
-    tf.io.gfile.makedirs(save_dir)
+def dads_algorithm(log_dir, py_env, save_dir, train_summary_writer, vid_dir):
 
   sample_count, iter_count, episode_size_buffer, episode_return_buffer = restore_training(log_dir)
-
-  # setup summary_writer_dir
-  train_summary_writer = tf.compat.v2.summary.create_file_writer(
-    os.path.join(log_dir, 'train', 'in_graph_data'), flush_millis=10 * 1000)
-  train_summary_writer.set_as_default()
 
   global_step = tf.compat.v1.train.get_or_create_global_step()
 
@@ -1787,43 +1784,9 @@ def dads_algorithm(log_dir, py_env):
 
       # final evaluation, if any
       if FLAGS.run_eval:
-        eval_dads(log_dir, eval_policy, agent)
+        eval_dads(log_dir, eval_policy, agent, vid_dir)
 
   return episode_return
-
-
-def read_json(json_file_name):
-  with open(json_file_name) as json_file:
-    dictionary = json.load(json_file)
-  return dictionary
-
-
-def write_config_json(config_data, env_dir):
-  json_file_name = os.path.join(env_dir, 'config.json')
-  with open(json_file_name, 'w') as out_file:
-    json.dump(config_data._asdict(), out_file)
-
-
-def write_perf_json(perf_data, env_dir):
-  json_file_name = os.path.join(env_dir, 'perf.json')
-  with open(json_file_name, 'w') as out_file:
-    json.dump(perf_data._asdict(), out_file)
-
-
-def write_tree_json(tree_data, log_dir):
-  json_file_name = os.path.join(log_dir, 'tree.json')
-  if os.path.exists(json_file_name):
-    os.remove(json_file_name)
-  with open(json_file_name, 'w') as out_file:
-    json.dump(tree_data, out_file)
-
-
-def read_env_json(env_dir):
-  json_file_name = os.path.join(env_dir, 'env.json')
-  with open(json_file_name) as json_file:
-    env = json.load(json_file)
-  env = Env_config(**env)
-  return env
 
 
 def setup_env_list(log_dir):
@@ -1835,6 +1798,20 @@ def setup_env_list(log_dir):
     if perf.active_env:
       env_list.append(perf.name)
   return env_list
+
+
+def setup_dirs(log_dir):
+  save_dir = os.path.join(log_dir, 'models')
+  if not tf.io.gfile.exists(save_dir):
+    tf.io.gfile.makedirs(save_dir)
+  # setup summary_writer_dir
+  train_summary_writer = tf.compat.v2.summary.create_file_writer(
+    os.path.join(log_dir, 'train', 'in_graph_data'), flush_millis=10 * 1000)
+  train_summary_writer.set_as_default()
+  vid_dir = os.path.join(log_dir, 'videos', 'final_eval')
+  if not tf.io.gfile.exists(vid_dir):
+    tf.io.gfile.makedirs(vid_dir)
+  return vid_dir, save_dir, train_summary_writer
 
 
 def setup_poet(init_env, log_dir):
@@ -1852,7 +1829,8 @@ def setup_poet(init_env, log_dir):
       tf.io.gfile.makedirs(env_dir)
     write_config_json(init_env, env_dir)
     py_env = setup_env(init_env)
-    tot_return = dads_algorithm(env_dir, py_env)
+    vid_dir, save_dir, train_summary_writer = setup_dirs(env_dir)
+    tot_return = dads_algorithm(env_dir, py_env, save_dir, train_summary_writer, vid_dir)
     perf = Env_performance(name=env_name,
                            parent=None,
                            tot_return=tot_return,
@@ -1862,6 +1840,52 @@ def setup_poet(init_env, log_dir):
     env_list = [init_env.name]
 
   return env_tree, env_list
+
+
+def setup_child(env, log_dir, parent, env_tree):
+  # if available start from last training
+  env_name = env.name
+  env_dir = os.path.join(log_dir, env_name)
+  if tf.io.gfile.exists(env_dir):
+    print(f'Environment with name: {env_dir} already exists!')
+    return
+  tf.io.gfile.makedirs(env_dir)
+  write_config_json(env, env_dir)
+  py_env = setup_env(env)
+  tot_return = dads_algorithm(env_dir, py_env, save_dir, train_summary_writer, vid_dir)
+  perf = Env_performance(name=env_name,
+                         parent=parent,
+                         tot_return=tot_return,
+                         active_env=True)
+  write_perf_json(perf, env_dir)
+  env_tree = env_tree[parent].append(env.name)
+  env_tree[env.name] = []
+  return env_tree
+
+
+def mutate_env(env_list, log_dir, max_children=3, max_admitted=5, capacity=10, min_performance=-100):
+  parent_list = []
+  for env in env_list:
+    env_path = os.path.join(log_dir, env)
+    if eligible_to_reproduce(env_path, min_performance):
+      parent_list.append(env)
+  child_list = env_reproduce(setup_env, parent_list, max_children, FLAGS.master_seed, FLAGS.env_categories, log_dir)
+  child_list = mc_satisfied(child_list)
+  child_list = rank_by_novelty(child_list)
+  admitted = 0
+  for child in child_list:
+    target_agent = evaluate_candidates(env_list, child)
+    if mc_satisfied(target_agent):
+      # TODO: add a way to encode appropriate agent into env (will be dir copy)
+      env_list.append(child)
+      admitted += 1
+      if admitted >= max_admitted:
+        break
+  env_list_size = len(env_list)
+  if env_list_size > capacity:
+    num_removals = env_list_size - capacity
+    env_list = remove_oldest(env_list, num_removals)
+  return env_list
 
 
 def main(_):
@@ -1886,7 +1910,7 @@ def main(_):
 
   for poet_step in range(FLAGS.poet_epochs):
     if poet_step > 0 and poet_step % FLAGS.mutation_interval == 0:
-      ea_pairs = mutator.mutate_env(env_list)
+      env_list = mutate_env(env_list, log_dir, FLAGS.max_children, FLAGS.max_admitted, FLAGS.env_capactiy)
 
 
     # Make an env-agent pair and then go to that dir, env is static for dir

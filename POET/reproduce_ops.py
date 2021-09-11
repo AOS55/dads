@@ -1,19 +1,4 @@
-# Copyright (c) 2020 Uber Technologies, Inc.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
-
-from poet_distributed.niches.box2d.env import Env_config
+from envs.bipedal_walker_custom import Env_config
 import numpy as np
 
 
@@ -32,10 +17,11 @@ def name_env_config(ground_roughness,
 
     return env_name
 
+
 class Reproducer:
-    def __init__(self, args):
-        self.rs = np.random.RandomState(args.master_seed)
-        self.categories = list(args.envs)
+    def __init__(self, master_seed, env_categories):
+        self.rs = np.random.RandomState(master_seed)
+        self.categories = list(env_categories)
 
     def pick(self, arr):
         return self.rs.choice(arr)
@@ -72,17 +58,16 @@ class Reproducer:
 
         return arr
 
-
     def mutate(self, parent):
 
-        ground_roughness=parent.ground_roughness
+        ground_roughness = parent.ground_roughness
         pit_gap = list(parent.pit_gap)
-        stump_width=list(parent.stump_width)
-        stump_height=list(parent.stump_height)
-        stump_float=list(parent.stump_float)
-        stair_height=list(parent.stair_height)
-        stair_width=list(parent.stair_width)
-        stair_steps=list(parent.stair_steps)
+        stump_width = list(parent.stump_width)
+        stump_height = list(parent.stump_height)
+        stump_float = list(parent.stump_float)
+        stair_height = list(parent.stair_height)
+        stair_width = list(parent.stair_width)
+        stair_steps = list(parent.stair_steps)
 
         if 'roughness' in self.categories:
             ground_roughness = np.round(ground_roughness + self.rs.uniform(-0.6, 0.6), 1)
@@ -115,7 +100,8 @@ class Reproducer:
             enforce = (len(stair_steps) == 0)
 
             if enforce or sub_category == '_s':
-                stair_steps = self.populate_array(stair_steps, [1, 2], interval=1, increment=1, enforce=enforce, max_value=[9, 9])
+                stair_steps = self.populate_array(stair_steps, [1, 2], interval=1, increment=1,
+                                                  enforce=enforce, max_value=[9, 9])
                 stair_steps = [int(i) for i in stair_steps]
 
             if enforce or sub_category == '_h':

@@ -42,6 +42,14 @@
 --agent_train_steps=64
 --agent_batch_size=256
 
+# poet hyperparameters
+--poet_epochs=20
+--mutation_interval=2
+--transfer_interval=4
+--env_capacity=10
+--mutator_max_children=3
+--mutator_max_admitted=5
+
 # (optional, do not change for on-policy) relabelling or off-policy corrections
 --skill_dynamics_relabel_type=importance_sampling
 --num_samples_for_relabelling=1
