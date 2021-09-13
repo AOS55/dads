@@ -23,6 +23,7 @@ import io
 from absl import flags, logging
 import functools
 import json
+import pickle
 
 import sys
 sys.path.append(os.path.abspath('./'))
@@ -260,6 +261,7 @@ observation_omit_size = 0
 # episode_size_buffer = []
 # episode_return_buffer = []
 
+
 # add a flag for state dependent std
 def _normal_projection_net(action_spec, init_means_output_factor=0.1):
   return normal_projection_network.NormalProjectionNetwork(
@@ -270,7 +272,15 @@ def _normal_projection_net(action_spec, init_means_output_factor=0.1):
       std_transform=sac_agent.std_clip_transform,
       scale_distribution=True)
 
+
 def get_environment(env_name='point_mass', env_config=DEFAULT_ENV):
+  """
+  Get the environment object to use for the simulation
+
+  :param env_name: name of the environment
+  :param env_config: configuration file to use, if a config env is used
+  :return: env object
+  """
   global observation_omit_size
   if env_name == 'Ant-v1':
     env = ant.AntEnv(
@@ -332,12 +342,13 @@ def get_environment(env_name='point_mass', env_config=DEFAULT_ENV):
     pyvirtualdisplay.Display(visible=0, size=(1400, 900)).start()
     env = bipedal_walker.BipedalWalker()
   elif env_name == 'bipedal_walker_custom':
-    pyvirtualdisplay.Display(visible=0, size=(1400, 900)).start()
+    # pyvirtualdisplay.Display(visible=0, size=(1400, 900)).start()
     env = bipedal_walker_custom.BipedalWalkerCustom(env_config)
   else:
     # note this is already wrapped, no need to wrap again
     env = suite_mujoco.load(env_name)
   return env
+
 
 def hide_coords(time_step):
   global observation_omit_size
@@ -352,6 +363,15 @@ def relabel_skill(trajectory_sample,
                   relabel_type=None,
                   cur_policy=None,
                   cur_skill_dynamics=None):
+  """
+  Relabel skills calculated on the trajectory_sample with the current policy
+
+  :param trajectory_sample: sample of trajectories from a given prior
+  :param relabel_type: type of relabelling to apply
+  :param cur_policy: current policy before relabelling
+  :param cur_skill_dynamics: current skill dynamic transitions
+  :return: trajectory sample, important sampled weights
+  """
   global observation_omit_size
   if relabel_type is None or ('importance_sampling' in relabel_type and
                               FLAGS.is_clip_eps <= 1.0):
@@ -486,7 +506,12 @@ def relabel_skill(trajectory_sample,
 
 # hard-coding the state-space for dynamics
 def process_observation(observation):
+  """
+  Hard code the state-space observations for the dynamics calculation
 
+  :param observation: observation from the trajectory
+  :return: input_obs used for agent/evaluation
+  """
   def _shape_based_observation_processing(observation, dim_idx):
     if len(observation.shape) == 1:
       return observation[dim_idx:dim_idx + 1]
@@ -601,6 +626,16 @@ def collect_experience(py_env,
                        collect_policy,
                        buffer_list,
                        num_steps=1):
+  """
+  Collect experience through rollout over a collection policy
+
+  :param py_env: the wrapped environment to rollout
+  :param time_step: update frequency
+  :param collect_policy: policy used to collect agent experience
+  :param buffer_list: list of buffers for stored transitions
+  :param num_steps: number of steps used at each step
+  :return: time_step and a dict of episode_sizes and total_return
+  """
 
   episode_sizes = []
   extrinsic_reward = []
@@ -658,6 +693,17 @@ def run_on_env(env,
                predict_trajectory_steps=0,
                return_data=False,
                close_environment=True):
+  """
+  Rollout a given policy on an environment
+
+  :param env: environment object to roll-out on
+  :param policy: policy to use for roll-out
+  :param dynamics: dynamics to get the log prob from
+  :param predict_trajectory_steps: number of steps to use to generate steps from
+  :param return_data: boolean of whether to return data
+  :param close_environment: whether to close environment
+  :return:
+  """
   time_step = env.reset()
   data = []
 
@@ -726,6 +772,16 @@ def eval_loop(eval_dir,
               dynamics=None,
               vid_name=None,
               plot_name=None):
+  """
+  Evaluation of policy loop to generate statistic and video
+
+  :param eval_dir: directory to save evaluations in
+  :param eval_policy: policy to use for evaluation
+  :param dynamics:  dynamics to get the log prob from
+  :param vid_name: name of video file
+  :param plot_name: name of pos plot
+  :return:
+  """
   metadata = tf.io.gfile.GFile(
       os.path.join(eval_dir, 'metadata.txt'), 'a')
   if FLAGS.num_skills == 0:
@@ -1120,7 +1176,12 @@ def eval_mppi(
 
 
 def setup_env(env_config=DEFAULT_ENV):
-  # environment related stuff
+  """
+  Setup env related stuff to get wrapped environment
+
+  :param env_config: configuration for custom reproducer
+  :return: skill wrapped environment
+  """
   py_env = get_environment(env_name=FLAGS.environment, env_config=env_config)
   py_env = wrap_env(
     skill_wrapper.SkillWrapper(
@@ -1135,7 +1196,12 @@ def setup_env(env_config=DEFAULT_ENV):
 
 
 def setup_spec(py_env):
-  # all specifications required for all networks and agents
+  """
+  Specs for network and agents
+
+  :param py_env: skill wrapped environment
+  :return: various spec files
+  """
   py_action_spec = py_env.action_spec()
   tf_action_spec = tensor_spec.from_spec(
     py_action_spec)  # policy, critic action spec
@@ -1165,6 +1231,16 @@ def setup_spec(py_env):
 
 
 def setup_dads(save_dir, global_step, tf_agent_time_step_spec, tf_action_spec, skill_dynamics_observation_size):
+  """
+  Setup DADS algorithm
+
+  :param save_dir: directory to save run info to
+  :param global_step: step size for the algorithm
+  :param tf_agent_time_step_spec: agent step specification
+  :param tf_action_spec: agent action specification
+  :param skill_dynamics_observation_size: size of skill dynamics to observe
+  :return: agent object from DADS after constructor
+  """
   # TODO(architsh): Shift co-ordinate hiding to actor_net and critic_net (good for futher image based processing as well)
   actor_net = actor_distribution_network.ActorDistributionNetwork(
     tf_agent_time_step_spec.observation,
@@ -1222,7 +1298,13 @@ def setup_dads(save_dir, global_step, tf_agent_time_step_spec, tf_action_spec, s
   return agent
 
 
-def setup_policys(agent, py_action_spec, py_env_time_step_spec, save_dir, global_step):
+def setup_policys(agent):
+  """
+  Given an agent object, setup and returns relevant tf policy networks
+
+  :param agent: dads agent object
+  :return: eval, collect and relabel tf policys
+  """
   # evaluation policy
   eval_policy = py_tf_policy.PyTFPolicy(agent.policy)
 
@@ -1241,6 +1323,16 @@ def setup_policys(agent, py_action_spec, py_env_time_step_spec, save_dir, global
 
 
 def setup_replay(agent, py_action_spec, py_env_time_step_spec, save_dir, global_step):
+  """
+  Setup replay buffer
+
+  :param agent: dads_agent
+  :param py_action_spec:
+  :param py_env_time_step_spec:
+  :param save_dir:
+  :param global_step:
+  :return: checkpointers and buffers
+  """
   # constructing a replay buffer, need a python spec
   policy_step_spec = policy_step.PolicyStep(
     action=py_action_spec, state=(), info=())
@@ -1368,7 +1460,12 @@ def train_skill_dynamics(rbuffer, skill_dynamics_buffer, relabel_policy, agent, 
 
 
 def restore_training(log_dir):
-  # in case training is paused and resumed, so can be restored
+  """
+  Given agent log_dir read key values or assign default
+
+  :param log_dir: agent log directory
+  :return: sample and iter counts, episode size and return buffers
+  """
   try:
     sample_count = np.load(os.path.join(log_dir, 'sample_count.npy')).tolist()
     iter_count = np.load(os.path.join(log_dir, 'iter_count.npy')).tolist()
@@ -1385,6 +1482,29 @@ def restore_training(log_dir):
 def train_dads(log_dir, sess, train_summary_writer, py_env, episode_size_buffer, episode_return_buffer,
                collect_policy, rbuffer, on_buffer, sample_count, train_checkpointer, policy_checkpointer,
                rb_checkpointer, agent, relabel_policy, eval_policy, meta_start_time, iter_count):
+  """
+  Train DADS itself
+
+  :param log_dir:
+  :param sess:
+  :param train_summary_writer:
+  :param py_env:
+  :param episode_size_buffer:
+  :param episode_return_buffer:
+  :param collect_policy:
+  :param rbuffer:
+  :param on_buffer:
+  :param sample_count:
+  :param train_checkpointer:
+  :param policy_checkpointer:
+  :param rb_checkpointer:
+  :param agent:
+  :param relabel_policy:
+  :param eval_policy:
+  :param meta_start_time:
+  :param iter_count:
+  :return:
+  """
   train_writer = tf.compat.v1.summary.FileWriter(
     os.path.join(log_dir, 'train'), sess.graph)
   common.initialize_uninitialized_variables(sess)
@@ -1588,7 +1708,15 @@ def train_dads(log_dir, sess, train_summary_writer, py_env, episode_size_buffer,
 
 
 def eval_dads(log_dir, eval_policy, agent, vid_dir):
+  """
+  Generate videos and DADS evaluation data
 
+  :param log_dir:
+  :param eval_policy:
+  :param agent:
+  :param vid_dir:
+  :return:
+  """
   vid_name = FLAGS.vid_name
   # generic skill evaluation
   if FLAGS.deterministic_eval or FLAGS.num_evals > 0:
@@ -1749,7 +1877,16 @@ def eval_dads(log_dir, eval_policy, agent, vid_dir):
 
 
 def dads_algorithm(log_dir, py_env, save_dir, train_summary_writer, vid_dir):
+  """
+  Run dads algorithm on one agent for a fixed number of epochs
 
+  :param log_dir:
+  :param py_env:
+  :param save_dir:
+  :param train_summary_writer:
+  :param vid_dir:
+  :return:
+  """
   sample_count, iter_count, episode_size_buffer, episode_return_buffer = restore_training(log_dir)
 
   global_step = tf.compat.v1.train.get_or_create_global_step()
@@ -1761,8 +1898,7 @@ def dads_algorithm(log_dir, py_env, save_dir, train_summary_writer, vid_dir):
     py_action_spec, py_env_time_step_spec = setup_spec(py_env)
     agent = setup_dads(save_dir, global_step, tf_agent_time_step_spec,
                        tf_action_spec, skill_dynamics_observation_size)
-    eval_policy, collect_policy, relabel_policy = setup_policys(agent, py_action_spec,
-                                                                py_env_time_step_spec, save_dir, global_step)
+    eval_policy, collect_policy, relabel_policy = setup_policys(agent)
     train_checkpointer, policy_checkpointer, \
     rb_checkpointer, on_buffer, rbuffer = setup_replay(agent, py_action_spec, py_env_time_step_spec,
                                                        save_dir, global_step)
@@ -1817,13 +1953,13 @@ def setup_dirs(log_dir):
 def setup_poet(init_env, log_dir):
   # start from last training
   try:
-    env_tree = read_json(os.path.join(log_dir, 'tree.json'))
-    env_list = setup_env_list(log_dir)
+    ea_list_path = os.path.join(log_dir, 'ea_list.pkl')
+    ea_list = pickle.load(open(ea_list_path, "rb"))
 
   # begin from start
   except:
     env_name = init_env.name
-    env_tree = {env_name: []}
+    ea_list = []
     env_dir = os.path.join(log_dir, env_name)
     if not tf.io.gfile.exists(env_dir):
       tf.io.gfile.makedirs(env_dir)
@@ -1835,11 +1971,10 @@ def setup_poet(init_env, log_dir):
                            parent=None,
                            tot_return=tot_return,
                            active_env=True)
+    env = {'config': init_env, 'perf': perf}
     write_perf_json(perf, env_dir)
-    write_tree_json(env_tree, log_dir)
-    env_list = [init_env.name]
 
-  return env_tree, env_list
+  return ea_list
 
 
 def setup_child(env, log_dir, parent, env_tree):
@@ -1852,6 +1987,7 @@ def setup_child(env, log_dir, parent, env_tree):
   tf.io.gfile.makedirs(env_dir)
   write_config_json(env, env_dir)
   py_env = setup_env(env)
+  vid_dir, save_dir, train_summary_writer = setup_dirs(env_dir)
   tot_return = dads_algorithm(env_dir, py_env, save_dir, train_summary_writer, vid_dir)
   perf = Env_performance(name=env_name,
                          parent=parent,
