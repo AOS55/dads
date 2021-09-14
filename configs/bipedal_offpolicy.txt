@@ -60,7 +60,7 @@
 --reduced_observation=0
 
 # define the type of skills being learnt
---num_skills=2
+--num_skills=10
 --skill_type=cont_uniform
 --random_skills=100
 

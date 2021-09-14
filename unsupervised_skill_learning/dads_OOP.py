@@ -236,7 +236,7 @@ def get_environment(env_name='point_mass', env_config=None):
   elif env_name == 'point_mass':
     env = point_mass.PointMassEnv(expose_goal=False, expose_velocity=False)
   elif env_name == 'bipedal_walker':
-    pyvirtualdisplay.Display(visible=0, size=(1400, 900)).start()
+    # pyvirtualdisplay.Display(visible=0, size=(1400, 900)).start()
     env = bipedal_walker.BipedalWalker()
   else:
     # note this is already wrapped, no need to wrap again
@@ -687,6 +687,7 @@ class DADS:
       sample_count += self.initial_collect_steps
 
     while iter_count < self.num_epochs:
+
       if self.save_model is not None and iter_count % self.save_freq == 0:
         with self.sess.as_default():
           self.train_checkpointer.save(global_step=iter_count)
@@ -755,6 +756,7 @@ class DADS:
       running_dads_reward, running_logp, running_logp_altz = [], [], []
 
       for _ in range(1 if self.clear_buffer_every_iter else self.agent_train_steps):
+
         if self.clear_buffer_every_iter:
           trajectory_sample = self.rbuffer.gather_all_transitions()
         else:
@@ -791,61 +793,64 @@ class DADS:
           running_logp.append(info['logp'])
           running_logp_altz.append(info['logp_altz'])
 
-        if len(self.episode_size_buffer) > 1:
-          train_writer.add_summary(
-            tf.compat.v1.Summary(value=[
-              tf.compat.v1.Summary.Value(
-                tag='episode_size',
-                simple_value=np.mean(self.episode_size_buffer[:-1]))
-            ]), sample_count)
-        if len(self.episode_return_buffer) > 1:
-          train_writer.add_summary(
-            tf.compat.v1.Summary(value=[
-              tf.compat.v1.Summary.Value(
-                tag='episode_return',
-                simple_value=np.mean(self.episode_return_buffer[:-1]))
-            ]), sample_count)
+      if len(self.episode_size_buffer) > 1:
         train_writer.add_summary(
           tf.compat.v1.Summary(value=[
             tf.compat.v1.Summary.Value(
-              tag='dads/reward',
-              simple_value=np.mean(
-                np.concatenate(running_dads_reward)))
+              tag='episode_size',
+              simple_value=np.mean(self.episode_size_buffer[:-1]))
           ]), sample_count)
-
+      if len(self.episode_return_buffer) > 1:
         train_writer.add_summary(
           tf.compat.v1.Summary(value=[
             tf.compat.v1.Summary.Value(
-              tag='dads/logp',
-              simple_value=np.mean(np.concatenate(running_logp)))
+              tag='episode_return',
+              simple_value=np.mean(self.episode_return_buffer[:-1]))
           ]), sample_count)
-        train_writer.add_summary(
-          tf.compat.v1.Summary(value=[
-            tf.compat.v1.Summary.Value(
-              tag='dads/logp_altz',
-              simple_value=np.mean(np.concatenate(running_logp_altz)))
-          ]), sample_count)
+      train_writer.add_summary(
+        tf.compat.v1.Summary(value=[
+          tf.compat.v1.Summary.Value(
+            tag='dads/reward',
+            simple_value=np.mean(
+              np.concatenate(running_dads_reward)))
+        ]), sample_count)
 
-        if self.clear_buffer_every_iter:
-          self.rbuffer.clear()
-          time_step = self.py_env.reset()
-          self.episode_size_buffer = [0]
-          self.episode_return_buffer = [0.]
+      train_writer.add_summary(
+        tf.compat.v1.Summary(value=[
+          tf.compat.v1.Summary.Value(
+            tag='dads/logp',
+            simple_value=np.mean(np.concatenate(running_logp)))
+        ]), sample_count)
+      train_writer.add_summary(
+        tf.compat.v1.Summary(value=[
+          tf.compat.v1.Summary.Value(
+            tag='dads/logp_altz',
+            simple_value=np.mean(np.concatenate(running_logp_altz)))
+        ]), sample_count)
 
-        if self.record_freq is not None and iter_count % self.record_freq == 0:
-          cur_vid_dir = os.path.join(self.log_dir, 'videos', str(iter_count))
-          tf.io.gfile.makedirs(cur_vid_dir)
-          self.eval_loop(
-            cur_vid_dir,
-            self.eval_policy,
-            dynamics=self.agent.skill_dynamics,
-            vid_name=self.vid_name,
-            plot_name='traj_plot'
-          )
+      if self.clear_buffer_every_iter:
+        self.rbuffer.clear()
+        time_step = self.py_env.reset()
+        self.episode_size_buffer = [0]
+        self.episode_return_buffer = [0.]
 
-        return np.mean(np.concatenate(running_dads_reward)),\
-               np.mean(np.concatenate(running_logp)),\
-               np.mean(np.concatenate(running_logp_altz))
+      if self.record_freq is not None and iter_count % self.record_freq == 0:
+        cur_vid_dir = os.path.join(self.log_dir, 'videos', str(iter_count))
+        tf.io.gfile.makedirs(cur_vid_dir)
+        self.eval_loop(
+          cur_vid_dir,
+          self.eval_policy,
+          dynamics=self.agent.skill_dynamics,
+          vid_name=self.vid_name,
+          plot_name='traj_plot'
+        )
+
+      iter_count += 1
+      print(f'iter_count is: {iter_count}')
+
+    return np.mean(np.concatenate(running_dads_reward)),\
+           np.mean(np.concatenate(running_logp)),\
+           np.mean(np.concatenate(running_logp_altz))
 
   def collect_experience(self, time_step, buffer_list, num_steps):
     """
@@ -1108,14 +1113,15 @@ class DADS:
       per_skill_evaluations = 1
       predict_trajectory_steps = 0
 
-      for eval_idx in range(per_skill_evaluations):
-        eval_trajectory = self.run_on_env(
-          eval_env,
-          eval_policy,
-          dynamics=dynamics,
-          predict_trajectory_steps=predict_trajectory_steps,
-          return_data=True,
-          close_environment=True if eval_idx == per_skill_evaluations - 1 else False)
+      with self.sess.as_default():
+        for eval_idx in range(per_skill_evaluations):
+          eval_trajectory = self.run_on_env(
+            eval_env,
+            eval_policy,
+            dynamics=dynamics,
+            predict_trajectory_steps=predict_trajectory_steps,
+            return_data=True,
+            close_environment=True if eval_idx == per_skill_evaluations - 1 else False)
 
         trajectory_coordinates = np.array([
           eval_trajectory[step_idx][0][:2]
@@ -1165,7 +1171,7 @@ class DADS:
     :param policy: policy to follow in environment
     :param dynamics: dynamics from skill to follow
     :param predict_trajectory_steps: number of steps to predict the trajectory for
-    :param return_data: what type of data to return
+    :param return_data: boolean, to return data
     :param close_environment: boolean, set true to close environment at end
     :return:
     """
@@ -1174,63 +1180,62 @@ class DADS:
 
     if not return_data:
       extrinsic_reward = []
+    # with self.sess.as_default():
     while not time_step.is_last():
-      with self.sess.as_default():
-        action_step = policy.action(self.hide_coords(time_step))
-        if self.action_clipping < 1.:
-          action_step = action_step._replace(
-            action=np.clip(action_step.action, -self.action_clipping,
-                           self.action_clipping))
+      action_step = policy.action(self.hide_coords(time_step))
+      if self.action_clipping < 1.:
+        action_step = action_step._replace(
+          action=np.clip(action_step.action, -self.action_clipping,
+                         self.action_clipping))
 
-        env_action = action_step.action
-        next_time_step = env.step(env_action)
+      env_action = action_step.action
+      next_time_step = env.step(env_action)
 
-        skill_size = self.num_skills
-        if skill_size > 0:
-          cur_observation = time_step.observation[:-skill_size]
-          cur_skill = time_step.observation[-skill_size:]
-          next_observation = next_time_step.observation[:-skill_size]
-        else:
-          cur_observation = time_step.observation
-          next_observation = next_time_step.observation
+      skill_size = self.num_skills
+      if skill_size > 0:
+        cur_observation = time_step.observation[:-skill_size]
+        cur_skill = time_step.observation[-skill_size:]
+        next_observation = next_time_step.observation[:-skill_size]
+      else:
+        cur_observation = time_step.observation
+        next_observation = next_time_step.observation
 
-        if dynamics is not None:
-          if self.reduced_observation:
-            cur_observation, next_observation = self.process_observation(
-              cur_observation), self.process_observation(next_observation)
-          logp = dynamics.get_log_prob(
-            np.expand_dims(cur_observation, 0), np.expand_dims(cur_skill, 0),
-            np.expand_dims(next_observation, 0))
+      if dynamics is not None:
+        if self.reduced_observation:
+          cur_observation, next_observation = self.process_observation(
+            cur_observation), self.process_observation(next_observation)
+        logp = dynamics.get_log_prob(
+          np.expand_dims(cur_observation, 0), np.expand_dims(cur_skill, 0),
+          np.expand_dims(next_observation, 0))
 
-          cur_predicted_state = np.expand_dims(cur_observation, 0)
-          skill_expanded = np.expand_dims(cur_skill, 0)
-          cur_predicted_trajectory = [cur_predicted_state[0]]
-          for _ in range(predict_trajectory_steps):
-            next_predicted_state = dynamics.predict_state(cur_predicted_state,
-                                                          skill_expanded)
-            cur_predicted_trajectory.append(next_predicted_state[0])
-            cur_predicted_state = next_predicted_state
-        else:
-          logp = ()
-          cur_predicted_trajectory = []
-
-        if return_data:
-          data.append([
-            cur_observation, action_step.action, logp, next_time_step.reward,
-            np.array(cur_predicted_trajectory)
-          ])
-        else:
-          extrinsic_reward.append([next_time_step.reward])
-
-        time_step = next_time_step
-
-      if close_environment:
-        env.close()
+        cur_predicted_state = np.expand_dims(cur_observation, 0)
+        skill_expanded = np.expand_dims(cur_skill, 0)
+        cur_predicted_trajectory = [cur_predicted_state[0]]
+        for _ in range(predict_trajectory_steps):
+          next_predicted_state = dynamics.predict_state(cur_predicted_state,
+                                                        skill_expanded)
+          cur_predicted_trajectory.append(next_predicted_state[0])
+          cur_predicted_state = next_predicted_state
+      else:
+        logp = ()
+        cur_predicted_trajectory = []
+      time_step = next_time_step
 
       if return_data:
-        return data
+        data.append([
+          cur_observation, action_step.action, logp, next_time_step.reward,
+          np.array(cur_predicted_trajectory)
+        ])
       else:
-        return extrinsic_reward
+        extrinsic_reward.append([next_time_step.reward])
+
+    if close_environment:
+      env.close()
+
+    if return_data:
+      return data
+    else:
+      return extrinsic_reward
 
   def eval_agent(self):
     """
