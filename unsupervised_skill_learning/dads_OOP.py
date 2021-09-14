@@ -50,6 +50,9 @@ from envs import dkitty_redesign
 from envs import hand_block
 
 from envs import bipedal_walker
+from envs import bipedal_walker_custom
+from envs.bipedal_walker_custom import Env_config
+
 import pyvirtualdisplay
 
 from lib import py_tf_policy
@@ -90,8 +93,7 @@ flags.DEFINE_integer('run_eval', 0, 'Evaluate learnt skills')
 
 # evaluation type
 flags.DEFINE_integer('num_evals', 0, 'Number of skills to evaluate')
-flags.DEFINE_integer('deterministic_eval', 0,
-                  'Evaluate all skills, only works for discrete skills')
+flags.DEFINE_integer('deterministic_eval', 0, 'Evaluate all skills, only works for discrete skills')
 
 # training
 flags.DEFINE_integer('run_train', 0, 'Train the agent')
@@ -238,6 +240,21 @@ def get_environment(env_name='point_mass', env_config=None):
   elif env_name == 'bipedal_walker':
     # pyvirtualdisplay.Display(visible=0, size=(1400, 900)).start()
     env = bipedal_walker.BipedalWalker()
+  elif env_name == 'bipedal_walker_custom':
+    pyvirtualdisplay.Display(visible=0, size=(1400, 900)).start()
+    if not env_config:
+      env_config = Env_config(
+        name='default_env',
+        ground_roughness=0,
+        pit_gap=[2],
+        stump_width=[],
+        stump_height=[],
+        stump_float=[],
+        stair_height=[],
+        stair_width=[],
+        stair_steps=[]
+      )
+    env = bipedal_walker_custom.BipedalWalkerCustom(env_config)
   else:
     # note this is already wrapped, no need to wrap again
     env = suite_mujoco.load(env_name)
@@ -263,6 +280,23 @@ def setup_top_dirs(root_dir, env_name):
   if not tf.io.gfile.exists(save_dir):
     tf.io.gfile.makedirs(save_dir)
   return root_dir, log_dir, save_dir
+
+
+def setup_agent_dir(log_dir, env_name):
+  """
+  If using multiple environment configs in a run create a new dir under the environment log_dir
+
+  :param log_dir: core env_name directory
+  :param env_name: name of this environment configuration
+  :return: log_dir, model_dir, save_dir
+  """
+  model_dir = os.path.join(log_dir, env_name)
+  if not tf.io.gfile.exists(model_dir):
+    tf.io.gfile.makedirs(model_dir)
+  save_dir = os.path.join(model_dir, 'models')
+  if not tf.io.gfile.exists(save_dir):
+    tf.io.gfile.makedirs(save_dir)
+  return log_dir, model_dir, save_dir
 
 
 class DADS:
@@ -315,6 +349,56 @@ class DADS:
                deterministic_eval,
                num_evals
                ):
+    """
+    Constructor for DADS procedures
+
+    :param env_name: name of gym environment
+    :param env_config: configuration (leave None for non-custom environment)
+    :param log_dir: logging directory for *this* object
+    :param num_skills: number of skills to learn p(z) ~ Z
+    :param skill_type: type of skills encoded by z ~ Z
+    :param random_skills: skills to use for prior samples
+    :param min_steps_before_resample: minimum steps to take before resampling the environment
+    :param resample_prob: likelihood of resampling the environment
+    :param max_env_steps: maximum number of steps to take within a given environment
+    :param observation_omit_size: whether to omit the size of observations
+    :param reduced_observation: whether to reduce the size of the observation
+    :param hidden_layer_size: size of networks hidden layers
+    :param save_dir: directory used to save the envs checkpoints (should link to log_dir)
+    :param skill_dynamics_observation_relabel_type: type of relabelling to apply to skill dynamics observation
+    :param skill_dynamics_relabel_type: type of skill relabelling e.g. importance sampling
+    :param is_clip_eps: size of eps clip
+    :param normalize_data: boolean to normalize_data
+    :param graph_type: type of graph used
+    :param num_components: number of components
+    :param fix_variance: boolean for fixed variance
+    :param skill_dynamics_lr: learning rate for skill dynamics
+    :param agent_lr: learning rate for agent itself
+    :param agent_gamma: gamma (discount factor) for agent
+    :param agent_entropy: entropy value for agent
+    :param debug: debug level
+    :param collect_policy_type: type of collection policy
+    :param replay_buffer_capacity: size of replay buffer
+    :param train_skill_dynamics_on_policy: skill dynamics training policy
+    :param initial_collect_steps: initial collection steps
+    :param collect_steps: collection steps
+    :param action_clipping: size of action clipping (+ve)
+    :param num_epochs: number of epochs to use
+    :param save_model: boolean, whether to save model or not
+    :param save_freq: frequency at which to save the environment key params
+    :param clear_buffer_every_iter: boolean, whether to clear the buffer @ every iteration
+    :param skill_dynamics_train_steps: number of steps to use to train each of the skill dynamics
+    :param skill_dynamics_batch_size: size of skill dynamics batch
+    :param num_samples_for_relabelling: number of samples to use for each samples relabelling
+    :param debug_skill_relabelling: boolean, whether to use skill relabelling (currently depreceated)
+    :param agent_train_steps: number of steps to use to train the SAC agent
+    :param agent_relabel_type: type of relabelling to use (e.g. 'Importance_Sampling')
+    :param agent_batch_size: size of the agent batch
+    :param record_freq: how often to record env information parameters
+    :param vid_name: general name to use for the video
+    :param deterministic_eval: boolean, whether to use deterministic evaluation
+    :param num_evals: number of evalutions to use for non-deterministic evaluation (pi is a distro NOT fixed outcome)
+    """
 
     # Initialize tensorboard logging
     self.train_summary_writer = tf.compat.v2.summary.create_file_writer(os.path.join(log_dir, 'train', 'in_graph_data'),
@@ -336,7 +420,9 @@ class DADS:
     self.skill_type = skill_type
     self.random_skills = random_skills
     self.max_env_steps = max_env_steps
-    self.py_env = self.wrap_env(min_steps_before_resample, resample_prob)
+    self.min_steps_before_resample = min_steps_before_resample
+    self.resample_prob = resample_prob
+    self.py_env = self.wrap_env()
 
     # Initialize spec attributes
     self.observation_omit_size = observation_omit_size
@@ -376,7 +462,8 @@ class DADS:
     self.agent = self.get_dads_agent()
 
     # Initialize policies
-    self.eval_policy, self.collect_policy, self.relabel_policy = self.initialize_policies(collect_policy_type)
+    self.collect_policy_type = collect_policy_type
+    self.eval_policy, self.collect_policy, self.relabel_policy = self.initialize_policies(self.collect_policy_type)
 
     # Initialize replay buffer
     self.policy_step_spec, self.trajectory_spec = self.define_buffer_spec()
@@ -412,20 +499,13 @@ class DADS:
     self.agent_batch_size = agent_batch_size
     self.record_freq = record_freq
     self.vid_name = vid_name
-    self.min_steps_before_resample = min_steps_before_resample
-    self.resample_prob = resample_prob
     self.deterministic_eval = deterministic_eval
     self.num_evals = num_evals
 
-  def wrap_env(self, min_steps_before_resample, resample_prob):
+  def wrap_env(self):
     """
     Wrap an environment with the skill wrapper
 
-    :num_skills: number of skills to learn i.e. size of p(z) ~ Z
-    :skill_type: types of skills to learn from p(z)
-    :preset_skill: what preset skills are used (often None)
-    :min_steps_before_resample: minimum number of steps to go before resampling skill distro
-    :resample_prob: likelihood of resampling the distribution
     :return: None
     """
     py_env = wrap_env(
@@ -434,8 +514,8 @@ class DADS:
         num_latent_skills=self.num_skills,
         skill_type=self.skill_type,
         preset_skill=None,
-        min_steps_before_resample=min_steps_before_resample,
-        resample_prob=resample_prob),
+        min_steps_before_resample=self.min_steps_before_resample,
+        resample_prob=self.resample_prob),
       max_episode_steps=self.max_env_steps
     )
     return py_env
@@ -1237,6 +1317,32 @@ class DADS:
     else:
       return extrinsic_reward
 
+  def update_env_config(self, env_config):
+    """
+    Update the environment with a new config file
+
+    :param env_config:
+    :return:
+    """
+    # TODO: test this and look at how to allow dir change based on name
+    # self.sess.close()  # close current session
+    self.env_config = env_config
+    # self.__init__()
+    # self.py_env = self.wrap_env()
+    # self.define_spec()
+    # self.initialize_networks(self._normal_projection_net)
+    # self.agent = self.get_dads_agent()
+    # self.initialize_networks(self._normal_projection_net)
+    # self.eval_policy, self.collect_policy, self.relabel_policy = self.initialize_policies(self.collect_policy_type)
+    # self.policy_step_spec, self.trajectory_spec = self.define_buffer_spec()
+    # self.rbuffer, self.on_buffer = self.initialize_buffer()
+    # self.agent.build_agent_graph()
+    # self.agent.build_skill_dynamics_graph()
+    # self.agent.create_savers()
+    # self.train_checkpointer, self.policy_checkpointer, self.rb_checkpointer = self.initialize_checkpoints(
+    #   self.global_step)
+    # self.sess = self.initialize_session()
+
   def eval_agent(self):
     """
     Evaluate the dads agent using the appropriate policy
@@ -1399,11 +1505,12 @@ def main(_):
   logging.set_verbosity(logging.INFO)
 
   root_dir, log_dir, save_dir = setup_top_dirs(FLAGS.logdir, FLAGS.environment)
+  log_dir, model_dir, save_dir = setup_agent_dir(log_dir, 'default_env')
 
   # Get initial gym environment
   dads_algo = DADS(env_name=FLAGS.environment,
                    env_config=None,
-                   log_dir=log_dir,
+                   log_dir=model_dir,
                    num_skills=FLAGS.num_skills,
                    skill_type=FLAGS.skill_type,
                    random_skills=FLAGS.random_skills,
@@ -1449,7 +1556,24 @@ def main(_):
                    num_evals=FLAGS.num_evals
                    )
   print(dads_algo.env)
+
   print(f'Train agent for dads algorithm: {dads_algo.train_agent()}')
+  stub_env_config = Env_config(
+        name='stub_env',
+        ground_roughness=0,
+        pit_gap=[],
+        stump_width=[],
+        stump_height=[],
+        stump_float=[],
+        stair_height=[],
+        stair_width=[],
+        stair_steps=[]
+      )
+  log_dir, model_dir, save_dir = setup_agent_dir(log_dir, stub_env_config.name)
+  dads_algo.log_dir = model_dir
+  dads_algo.save_dir = save_dir
+  print(f'Change active env_config and reset: {dads_algo.update_env_config(stub_env_config)}')
+  print(f'Train again with new config: {dads_algo.train_agent()}')
 
 
 if __name__ == '__main__':
