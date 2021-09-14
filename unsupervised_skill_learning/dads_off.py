@@ -294,7 +294,7 @@ def get_environment(env_name='point_mass'):
         randomize_initial_position=bool(FLAGS.randomized_initial_distribution),
         randomize_initial_rotation=bool(FLAGS.randomized_initial_distribution))
   elif env_name == 'bipedal_walker':
-    pyvirtualdisplay.Display(visible=0, size=(1400, 900)).start()
+    # pyvirtualdisplay.Display(visible=0, size=(1400, 900)).start()
     env = bipedal_walker.BipedalWalker()
   else:
     # note this is already wrapped, no need to wrap again

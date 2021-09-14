@@ -236,7 +236,7 @@ def get_environment(env_name='point_mass', env_config=None):
   elif env_name == 'point_mass':
     env = point_mass.PointMassEnv(expose_goal=False, expose_velocity=False)
   elif env_name == 'bipedal_walker':
-    # pyvirtualdisplay.Display(visible=0, size=(1400, 900)).start()
+    pyvirtualdisplay.Display(visible=0, size=(1400, 900)).start()
     env = bipedal_walker.BipedalWalker()
   else:
     # note this is already wrapped, no need to wrap again
@@ -312,7 +312,8 @@ class DADS:
                agent_batch_size,
                record_freq,
                vid_name,
-               deterministic_eval
+               deterministic_eval,
+               num_evals
                ):
 
     # Initialize tensorboard logging
@@ -324,6 +325,9 @@ class DADS:
     self.env_name = env_name
     self.env_config = env_config
     self.env = get_environment(env_name, env_config)
+
+    # Initialize a global step type
+    self.global_step = tf.compat.v1.train.get_or_create_global_step()  # graph in which to create global step tensor
 
     # Initialize env parameters
     self.episode_size_buffer = []
@@ -367,7 +371,7 @@ class DADS:
     self.agent_lr = agent_lr
     self.agent_gamma = agent_gamma
     self.agent_entropy = agent_entropy
-    self.reward_scale_factor = reward_scale_factor
+    # self.reward_scale_factor = reward_scale_factor
     self.debug = debug
     self.agent = self.get_dads_agent()
 
@@ -382,13 +386,14 @@ class DADS:
     self.collect_steps = collect_steps
     self.rbuffer, self.on_buffer = self.initialize_buffer()
 
-    # Initialize agent methods
+    # Initialize agent methods for sess graphs
     self.agent.build_agent_graph()
     self.agent.build_skill_dynamics_graph()
     self.agent.create_savers()
 
     # Save current setup & start sessions
-    self.train_checkpointer, self.policy_checkpointer, self.rb_checkpointer = self.initialize_checkpoints(global_step)
+    self.train_checkpointer, self.policy_checkpointer, self.rb_checkpointer = self.initialize_checkpoints(
+      self.global_step)
     self.sess = self.initialize_session()
 
     # Parameters for training
@@ -410,6 +415,7 @@ class DADS:
     self.min_steps_before_resample = min_steps_before_resample
     self.resample_prob = resample_prob
     self.deterministic_eval = deterministic_eval
+    self.num_evals = num_evals
 
   def wrap_env(self, min_steps_before_resample, resample_prob):
     """
@@ -425,11 +431,12 @@ class DADS:
     py_env = wrap_env(
       skill_wrapper.SkillWrapper(
         self.env,
-        self.num_skills,
-        self.skill_type,
-        min_steps_before_resample,
-        resample_prob),
-      self.max_env_steps
+        num_latent_skills=self.num_skills,
+        skill_type=self.skill_type,
+        preset_skill=None,
+        min_steps_before_resample=min_steps_before_resample,
+        resample_prob=resample_prob),
+      max_episode_steps=self.max_env_steps
     )
     return py_env
 
@@ -482,7 +489,7 @@ class DADS:
     )
 
     self.critic_net = critic_network.CriticNetwork(
-      (self.tf_agent_time_step_spec, self.tf_action_spec),
+      (self.tf_agent_time_step_spec.observation, self.tf_action_spec),
       observation_fc_layer_params=None,
       action_fc_layer_params=None,
       joint_fc_layer_params=(self.hidden_layer_size,) * 2,
@@ -494,8 +501,6 @@ class DADS:
 
     :return: agent object
     """
-    # Set a global step type
-    global_step = tf.compat.v1.train.get_or_create_global_step()  # graph in which to create global step tensor
     if self.skill_dynamics_observation_relabel_type is not None and 'importance_sampling' in \
             self.skill_dynamics_relabel_type and self.is_clip_eps > 1.0:
       reweigh_batches = True
@@ -530,10 +535,10 @@ class DADS:
       alpha_optimizer=tf.compat.v1.train.AdamOptimizer(learning_rate=self.agent_lr),
       td_errors_loss_fn=tf.compat.v1.losses.mean_squared_error,
       gamma=self.agent_gamma,
-      reward_scale_factor = 1. / (self.agent_entropy + 1e-12),
+      reward_scale_factor=1. / (self.agent_entropy + 1e-12),
       gradient_clipping=None,
       debug_summaries=self.debug,
-      train_step_counter=global_step
+      train_step_counter=self.global_step
     )
     return agent
 
@@ -590,7 +595,8 @@ class DADS:
         capacity=self.initial_collect_steps + self.collect_steps + 10,
         data_spec=self.trajectory_spec
       )
-    return rbuffer, on_buffer
+      return rbuffer, on_buffer
+    return rbuffer, None
 
   def initialize_checkpoints(self, global_step):
     """
@@ -619,7 +625,7 @@ class DADS:
 
     :return: session object (needs to be closed at end)
     """
-    sess = tf.compat.v1.Session().as_default()
+    sess = tf.compat.v1.Session()
     self.train_checkpointer.initialize_or_restore(sess)
     self.rb_checkpointer.initialize_or_restore(sess)
     self.agent.set_sessions(initialize_or_restore_skill_dynamics=True, session=sess)
@@ -636,6 +642,8 @@ class DADS:
     train_writer = tf.compat.v1.summary.FileWriter(os.path.join(self.log_dir, 'train'), self.sess.graph)
     common.initialize_uninitialized_variables(self.sess)
     self.sess.run(self.train_summary_writer.init())
+
+    time_step = self.py_env.reset()
     self.episode_size_buffer.append(0)
     self.episode_return_buffer.append(0.)
     iter_count = 0
@@ -667,34 +675,36 @@ class DADS:
       valid_indices = (trajectory.step_type[:, 0] != 2)
       return nest.map_structure(lambda x: x[valid_indices], trajectory)
 
-    time_step = self.py_env.reset()
     if iter_count == 0:
-      time_step, collect_info = self.collect_experience(time_step,
-                                                        buffer_list=[self.rbuffer] if not
-                                                        self.train_skill_dynamics_on_policy
-                                                        else [self.rbuffer, self.on_buffer],
-                                                        num_steps=self.initial_collect_steps)
+      with self.sess.as_default():
+        time_step, collect_info = self.collect_experience(time_step,
+                                                          buffer_list=[self.rbuffer] if not
+                                                          self.train_skill_dynamics_on_policy
+                                                          else [self.rbuffer, self.on_buffer],
+                                                          num_steps=self.initial_collect_steps)
       self.episode_size_buffer = _process_episode_data(self.episode_size_buffer, collect_info['episode_sizes'])
       self.episode_return_buffer = _process_episode_data(self.episode_return_buffer, collect_info['episode_return'])
       sample_count += self.initial_collect_steps
 
     while iter_count < self.num_epochs:
       if self.save_model is not None and iter_count % self.save_freq == 0:
-        self.train_checkpointer.save(global_step=iter_count)
-        self.policy_checkpointer.save(global_step=iter_count)
-        self.rb_checkpointer.save(global_step=iter_count)
-        self.agent.save_variables(global_step=iter_count)
+        with self.sess.as_default():
+          self.train_checkpointer.save(global_step=iter_count)
+          self.policy_checkpointer.save(global_step=iter_count)
+          self.rb_checkpointer.save(global_step=iter_count)
+          self.agent.save_variables(global_step=iter_count)
         # Save numpy binaries
         np.save(os.path.join(self.log_dir, 'sample_count'), sample_count)
         np.save(os.path.join(self.log_dir, 'episode_size_buffer'), self.episode_size_buffer)
         np.save(os.path.join(self.log_dir, 'episode_return_path'), self.episode_return_buffer)
         np.save(os.path.join(self.log_dir, 'iter_count'), iter_count)
 
-      time_step, collect_info = self.collect_experience(time_step,
-                                                        buffer_list=[self.rbuffer] if not
-                                                        self.train_skill_dynamics_on_policy
-                                                        else [self.rbuffer, self.on_buffer],
-                                                        num_steps=self.collect_steps)
+      with self.sess.as_default():
+        time_step, collect_info = self.collect_experience(time_step,
+                                                          buffer_list=[self.rbuffer] if not
+                                                          self.train_skill_dynamics_on_policy
+                                                          else [self.rbuffer, self.on_buffer],
+                                                          num_steps=self.collect_steps)
       sample_count += self.collect_steps
       self.episode_size_buffer = _process_episode_data(self.episode_size_buffer, collect_info['episode_sizes'])
       self.episode_return_buffer = _process_episode_data(self.episode_return_buffer, collect_info['episode_sizes'])
@@ -751,7 +761,7 @@ class DADS:
           trajectory_sample = self.rbuffer.get_next(sample_batch_size=self.agent_batch_size, num_steps=2)
 
         trajectory_sample = _filter_trajectories(trajectory_sample)
-        trajectory_sample, = self.relabel_skill(
+        trajectory_sample, is_weights = self.relabel_skill(
           trajectory_sample,
           relabel_type=self.agent_relabel_type,
           cur_policy=self.relabel_policy,
@@ -1044,7 +1054,7 @@ class DADS:
     :return: None
     """
     metadata = tf.io.gfile.GFile(os.path.join(eval_dir, 'metadata.txt'), 'a')
-    if self.num_skills ==0:
+    if self.num_skills == 0:
       num_evals = self.num_evals
     elif self.deterministic_eval:
       num_evals = self.num_skills
@@ -1165,61 +1175,62 @@ class DADS:
     if not return_data:
       extrinsic_reward = []
     while not time_step.is_last():
-      action_step = policy.action(self.hide_coords(time_step))
-      if self.action_clipping < 1.:
-        action_step = action_step._replace(
-          action=np.clip(action_step.action, -self.action_clipping,
-                         self.action_clipping))
+      with self.sess.as_default():
+        action_step = policy.action(self.hide_coords(time_step))
+        if self.action_clipping < 1.:
+          action_step = action_step._replace(
+            action=np.clip(action_step.action, -self.action_clipping,
+                           self.action_clipping))
 
-      env_action = action_step.action
-      next_time_step = env.step(env_action)
+        env_action = action_step.action
+        next_time_step = env.step(env_action)
 
-      skill_size = self.num_skills
-      if skill_size > 0:
-        cur_observation = time_step.observation[:-skill_size]
-        cur_skill = time_step.observation[-skill_size:]
-        next_observation = next_time_step.observation[:-skill_size]
-      else:
-        cur_observation = time_step.observation
-        next_observation = next_time_step.observation
+        skill_size = self.num_skills
+        if skill_size > 0:
+          cur_observation = time_step.observation[:-skill_size]
+          cur_skill = time_step.observation[-skill_size:]
+          next_observation = next_time_step.observation[:-skill_size]
+        else:
+          cur_observation = time_step.observation
+          next_observation = next_time_step.observation
 
-      if dynamics is not None:
-        if self.reduced_observation:
-          cur_observation, next_observation = self.process_observation(
-            cur_observation), self.process_observation(next_observation)
-        logp = dynamics.get_log_prob(
-          np.expand_dims(cur_observation, 0), np.expand_dims(cur_skill, 0),
-          np.expand_dims(next_observation, 0))
+        if dynamics is not None:
+          if self.reduced_observation:
+            cur_observation, next_observation = self.process_observation(
+              cur_observation), self.process_observation(next_observation)
+          logp = dynamics.get_log_prob(
+            np.expand_dims(cur_observation, 0), np.expand_dims(cur_skill, 0),
+            np.expand_dims(next_observation, 0))
 
-        cur_predicted_state = np.expand_dims(cur_observation, 0)
-        skill_expanded = np.expand_dims(cur_skill, 0)
-        cur_predicted_trajectory = [cur_predicted_state[0]]
-        for _ in range(predict_trajectory_steps):
-          next_predicted_state = dynamics.predict_state(cur_predicted_state,
-                                                        skill_expanded)
-          cur_predicted_trajectory.append(next_predicted_state[0])
-          cur_predicted_state = next_predicted_state
-      else:
-        logp = ()
-        cur_predicted_trajectory = []
+          cur_predicted_state = np.expand_dims(cur_observation, 0)
+          skill_expanded = np.expand_dims(cur_skill, 0)
+          cur_predicted_trajectory = [cur_predicted_state[0]]
+          for _ in range(predict_trajectory_steps):
+            next_predicted_state = dynamics.predict_state(cur_predicted_state,
+                                                          skill_expanded)
+            cur_predicted_trajectory.append(next_predicted_state[0])
+            cur_predicted_state = next_predicted_state
+        else:
+          logp = ()
+          cur_predicted_trajectory = []
+
+        if return_data:
+          data.append([
+            cur_observation, action_step.action, logp, next_time_step.reward,
+            np.array(cur_predicted_trajectory)
+          ])
+        else:
+          extrinsic_reward.append([next_time_step.reward])
+
+        time_step = next_time_step
+
+      if close_environment:
+        env.close()
 
       if return_data:
-        data.append([
-          cur_observation, action_step.action, logp, next_time_step.reward,
-          np.array(cur_predicted_trajectory)
-        ])
+        return data
       else:
-        extrinsic_reward.append([next_time_step.reward])
-
-      time_step = next_time_step
-
-    if close_environment:
-      env.close()
-
-    if return_data:
-      return data
-    else:
-      return extrinsic_reward
+        return extrinsic_reward
 
   def eval_agent(self):
     """
@@ -1429,9 +1440,11 @@ def main(_):
                    agent_batch_size=FLAGS.agent_batch_size,
                    record_freq=FLAGS.record_freq,
                    vid_name=FLAGS.vid_name,
-                   deterministic_eval=FLAGS.deterministic_eval
+                   deterministic_eval=FLAGS.deterministic_eval,
+                   num_evals=FLAGS.num_evals
                    )
   print(dads_algo.env)
+  print(f'Train agent for dads algorithm: {dads_algo.train_agent()}')
 
 
 if __name__ == '__main__':
