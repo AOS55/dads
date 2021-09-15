@@ -50,6 +50,9 @@ from envs import dkitty_redesign
 from envs import hand_block
 
 from envs import bipedal_walker
+from envs import bipedal_walker_custom
+from envs.bipedal_walker_custom import Env_config
+
 import pyvirtualdisplay
 
 from lib import py_tf_policy
@@ -90,8 +93,7 @@ flags.DEFINE_integer('run_eval', 0, 'Evaluate learnt skills')
 
 # evaluation type
 flags.DEFINE_integer('num_evals', 0, 'Number of skills to evaluate')
-flags.DEFINE_integer('deterministic_eval', 0,
-                  'Evaluate all skills, only works for discrete skills')
+flags.DEFINE_integer('deterministic_eval', 0, 'Evaluate all skills, only works for discrete skills')
 
 # training
 flags.DEFINE_integer('run_train', 0, 'Train the agent')
@@ -236,8 +238,23 @@ def get_environment(env_name='point_mass', env_config=None):
   elif env_name == 'point_mass':
     env = point_mass.PointMassEnv(expose_goal=False, expose_velocity=False)
   elif env_name == 'bipedal_walker':
-    # pyvirtualdisplay.Display(visible=0, size=(1400, 900)).start()
+    pyvirtualdisplay.Display(visible=0, size=(1400, 900)).start()
     env = bipedal_walker.BipedalWalker()
+  elif env_name == 'bipedal_walker_custom':
+    pyvirtualdisplay.Display(visible=0, size=(1400, 900)).start()
+    if env_config is None:
+      env_config = Env_config(
+        name='default_env',
+        ground_roughness=0,
+        pit_gap=[2],
+        stump_width=[],
+        stump_height=[],
+        stump_float=[],
+        stair_height=[],
+        stair_width=[],
+        stair_steps=[]
+      )
+    env = bipedal_walker_custom.BipedalWalkerCustom(env_config)
   else:
     # note this is already wrapped, no need to wrap again
     env = suite_mujoco.load(env_name)
@@ -263,6 +280,239 @@ def setup_top_dirs(root_dir, env_name):
   if not tf.io.gfile.exists(save_dir):
     tf.io.gfile.makedirs(save_dir)
   return root_dir, log_dir, save_dir
+
+
+def setup_agent_dir(log_dir, env_name):
+  """
+  If using multiple environment configs in a run create a new dir under the environment log_dir
+
+  :param log_dir: core env_name directory
+  :param env_name: name of this environment configuration
+  :return: log_dir, model_dir, save_dir
+  """
+  model_dir = os.path.join(log_dir, env_name)
+  if not tf.io.gfile.exists(model_dir):
+    tf.io.gfile.makedirs(model_dir)
+  save_dir = os.path.join(model_dir, 'models')
+  if not tf.io.gfile.exists(save_dir):
+    tf.io.gfile.makedirs(save_dir)
+  return log_dir, model_dir, save_dir
+
+
+class EnvPairs:
+  def __init__(self, init_config, log_dir):
+    self.config = init_config
+    self.log_dir = log_dir
+    self.pairs = []
+    self.initialize_agent()
+
+  def initialize_agent(self):
+    """
+    Train the initial instant of the agent configuration
+
+    :return: None
+    """
+    init_agent = create_agent(self.config)
+    perf = init_agent.train_agent()
+    del init_agent
+    tf.keras.backend.clear_session()
+    self.pairs.append({'config': self.config, 'performance': perf, 'log_dir': self.log_dir})
+
+  def train_on_new_env(self, env_config):
+    """
+    Train a new agent on an existing env config
+    :param env_config:
+    :return:
+    """
+    log_dir, model_dir, save_dir = setup_agent_dir(self.log_dir, env_config.name)
+    self.config['name'] = env_config.name
+    self.config['env_config'] = env_config
+    self.config['log_dir'] = model_dir
+    self.config['save_dir'] = save_dir
+    agent = self._create_agent(self.config)
+    perf = agent.train_agent()
+    del agent
+    tf.keras.backend.clear_session()
+    self.pairs.append({'config': env_config, 'performance': perf, 'log_dir': log_dir})
+
+  @staticmethod
+  def _get_agent_config(current_dads) -> dict:
+    """
+    Get values used to construct a copy of a dads object
+
+    :param current_dads: dads object
+    :return: dictionary of the objects implementation
+    """
+    full_dict = current_dads.__dict__
+    constructor_config = {
+      'env_name': full_dict['env_name'],
+      'env_config': full_dict['env_config'],
+      'log_dir': full_dict['log_dir'],
+      'num_skills': full_dict['num_skills'],
+      'skill_type': full_dict['skill_type'],
+      'random_skills': full_dict['random_skills'],
+      'min_steps_before_resample': full_dict['min_steps_before_resample'],
+      'resample_prob': full_dict['resample_prob'],
+      'max_env_steps': full_dict['max_env_steps'],
+      'observation_omit_size': full_dict['observation_omit_size'],
+      'reduced_observation': full_dict['reduced_observation'],
+      'hidden_layer_size': full_dict['hidden_layer_size'],
+      'save_dir': full_dict['save_dir'],
+      'skill_dynamics_observation_relabel_type': full_dict['skill_dynamics_observation_relabel_type'],
+      'skill_dynamics_relabel_type': full_dict['skill_dynamics_relabel_type'],
+      'is_clip_eps': full_dict['is_clip_eps'],
+      'normalize_data': full_dict['normalize_data'],
+      'graph_type': full_dict['graph_type'],
+      'num_components': full_dict['num_components'],
+      'fix_variance': full_dict['fix_variance'],
+      'skill_dynamics_lr': full_dict['skill_dynamics_lr'],
+      'agent_lr': full_dict['agent_lr'],
+      'agent_gamma': full_dict['agent_gamma'],
+      'agent_entropy': full_dict['agent_entropy'],
+      'debug': full_dict['debug'],
+      'collect_policy_type': full_dict['collect_policy_type'],
+      'replay_buffer_capacity': full_dict['replay_buffer_capacity'],
+      'train_skill_dynamics_on_policy': full_dict['train_skill_dynamics_on_policy'],
+      'initial_collect_steps': full_dict['initial_collect_steps'],
+      'collect_steps': full_dict['collect_steps'],
+      'action_clipping': full_dict['action_clipping'],
+      'num_epochs': full_dict['num_epochs'],
+      'save_model': full_dict['save_model'],
+      'save_freq': full_dict['save_freq'],
+      'clear_buffer_every_iter': full_dict['clear_buffer_every_iter'],
+      'skill_dynamics_train_steps': full_dict['skill_dynamics_train_steps'],
+      'skill_dynamics_batch_size': full_dict['skill_dynamics_batch_size'],
+      'num_samples_for_relabelling': full_dict['num_samples_for_relabelling'],
+      'debug_skill_relabelling': full_dict['debug_skill_relabelling'],
+      'agent_train_steps': full_dict['agent_train_steps'],
+      'agent_relabel_type': full_dict['agent_relabel_type'],
+      'agent_batch_size': full_dict['agent_batch_size'],
+      'record_freq': full_dict['record_freq'],
+      'vid_name': full_dict['vid_name'],
+      'deterministic_eval': full_dict['deterministic_eval'],
+      'num_evals': full_dict['num_evals'],
+      'restore_training': full_dict['restore_training']
+    }
+    del full_dict
+    return constructor_config
+
+  @staticmethod
+  def _create_agent(dads_config):
+    """
+    Given a DADS config file make an instance of a DADS object
+
+    :param dads_config:
+    :return:
+    """
+    agent = DADS(env_name=dads_config['env_name'],
+                 env_config=dads_config['env_config'],
+                 log_dir=dads_config['log_dir'],
+                 num_skills=dads_config['num_skills'],
+                 skill_type=dads_config['skill_type'],
+                 random_skills=dads_config['random_skills'],
+                 min_steps_before_resample=dads_config['min_steps_before_resample'],
+                 resample_prob=dads_config['resample_prob'],
+                 max_env_steps=dads_config['max_env_steps'],
+                 observation_omit_size=dads_config['observation_omit_size'],
+                 reduced_observation=dads_config['reduced_observation'],
+                 hidden_layer_size=dads_config['hidden_layer_size'],
+                 save_dir=dads_config['save_dir'],
+                 skill_dynamics_observation_relabel_type=dads_config['skill_dynamics_observation_relabel_type'],
+                 skill_dynamics_relabel_type=dads_config['skill_dynamics_relabel_type'],
+                 is_clip_eps=dads_config['is_clip_eps'],
+                 normalize_data=dads_config['normalize_data'],
+                 graph_type=dads_config['graph_type'],
+                 num_components=dads_config['num_components'],
+                 fix_variance=dads_config['fix_variance'],
+                 skill_dynamics_lr=dads_config['skill_dynamics_lr'],
+                 agent_lr=dads_config['agent_lr'],
+                 agent_gamma=dads_config['agent_gamma'],
+                 agent_entropy=dads_config['agent_entropy'],
+                 debug=dads_config['debug'],
+                 collect_policy_type=dads_config['collect_policy_type'],
+                 replay_buffer_capacity=dads_config['replay_buffer_capacity'],
+                 train_skill_dynamics_on_policy=dads_config['train_skill_dynamics_on_policy'],
+                 initial_collect_steps=dads_config['initial_collect_steps'],
+                 collect_steps=dads_config['collect_steps'],
+                 action_clipping=dads_config['action_clipping'],
+                 num_epochs=dads_config['num_epochs'],
+                 save_model=dads_config['save_model'],
+                 save_freq=dads_config['save_freq'],
+                 clear_buffer_every_iter=dads_config['clear_buffer_every_iter'],
+                 skill_dynamics_train_steps=dads_config['skill_dynamics_train_steps'],
+                 skill_dynamics_batch_size=dads_config['skill_dynamics_batch_size'],
+                 num_samples_for_relabelling=dads_config['num_samples_for_relabelling'],
+                 debug_skill_relabelling=dads_config['debug_skill_relabelling'],
+                 agent_train_steps=dads_config['agent_train_steps'],
+                 agent_relabel_type=dads_config['agent_relabel_type'],
+                 agent_batch_size=dads_config['agent_batch_size'],
+                 record_freq=dads_config['record_freq'],
+                 vid_name=dads_config['vid_name'],
+                 deterministic_eval=dads_config['deterministic_eval'],
+                 num_evals=dads_config['num_evals'],
+                 restore_training=dads_config['restore_training'])
+    return agent
+
+
+def get_agent_config(current_dads) -> dict:
+  """
+  Get values used to construct a copy of a dads object
+
+  :param current_dads: dads object
+  :return: dictionary of the objects implementation
+  """
+  full_dict = current_dads.__dict__
+  constructor_config = {
+    'env_name': full_dict['env_name'],
+    'env_config': full_dict['env_config'],
+    'log_dir': full_dict['log_dir'],
+    'num_skills': full_dict['num_skills'],
+    'skill_type': full_dict['skill_type'],
+    'random_skills': full_dict['random_skills'],
+    'min_steps_before_resample': full_dict['min_steps_before_resample'],
+    'resample_prob': full_dict['resample_prob'],
+    'max_env_steps': full_dict['max_env_steps'],
+    'observation_omit_size': full_dict['observation_omit_size'],
+    'reduced_observation': full_dict['reduced_observation'],
+    'hidden_layer_size': full_dict['hidden_layer_size'],
+    'save_dir': full_dict['save_dir'],
+    'skill_dynamics_observation_relabel_type': full_dict['skill_dynamics_observation_relabel_type'],
+    'skill_dynamics_relabel_type': full_dict['skill_dynamics_relabel_type'],
+    'is_clip_eps': full_dict['is_clip_eps'],
+    'normalize_data': full_dict['normalize_data'],
+    'graph_type': full_dict['graph_type'],
+    'num_components': full_dict['num_components'],
+    'fix_variance': full_dict['fix_variance'],
+    'skill_dynamics_lr': full_dict['skill_dynamics_lr'],
+    'agent_lr': full_dict['agent_lr'],
+    'agent_gamma': full_dict['agent_gamma'],
+    'agent_entropy': full_dict['agent_entropy'],
+    'debug': full_dict['debug'],
+    'collect_policy_type': full_dict['collect_policy_type'],
+    'replay_buffer_capacity': full_dict['replay_buffer_capacity'],
+    'train_skill_dynamics_on_policy': full_dict['train_skill_dynamics_on_policy'],
+    'initial_collect_steps': full_dict['initial_collect_steps'],
+    'collect_steps': full_dict['collect_steps'],
+    'action_clipping': full_dict['action_clipping'],
+    'num_epochs': full_dict['num_epochs'],
+    'save_model': full_dict['save_model'],
+    'save_freq': full_dict['save_freq'],
+    'clear_buffer_every_iter': full_dict['clear_buffer_every_iter'],
+    'skill_dynamics_train_steps': full_dict['skill_dynamics_train_steps'],
+    'skill_dynamics_batch_size': full_dict['skill_dynamics_batch_size'],
+    'num_samples_for_relabelling': full_dict['num_samples_for_relabelling'],
+    'debug_skill_relabelling': full_dict['debug_skill_relabelling'],
+    'agent_train_steps': full_dict['agent_train_steps'],
+    'agent_relabel_type': full_dict['agent_relabel_type'],
+    'agent_batch_size': full_dict['agent_batch_size'],
+    'record_freq': full_dict['record_freq'],
+    'vid_name': full_dict['vid_name'],
+    'deterministic_eval': full_dict['deterministic_eval'],
+    'num_evals': full_dict['num_evals'],
+    'restore_training': full_dict['restore_training']
+  }
+  del full_dict
+  return constructor_config
 
 
 class DADS:
@@ -313,8 +563,59 @@ class DADS:
                record_freq,
                vid_name,
                deterministic_eval,
-               num_evals
+               num_evals,
+               restore_training
                ):
+    """
+    Constructor for DADS procedures
+
+    :param env_name: name of gym environment
+    :param env_config: configuration (leave None for non-custom environment)
+    :param log_dir: logging directory for *this* object
+    :param num_skills: number of skills to learn p(z) ~ Z
+    :param skill_type: type of skills encoded by z ~ Z
+    :param random_skills: skills to use for prior samples
+    :param min_steps_before_resample: minimum steps to take before resampling the environment
+    :param resample_prob: likelihood of resampling the environment
+    :param max_env_steps: maximum number of steps to take within a given environment
+    :param observation_omit_size: whether to omit the size of observations
+    :param reduced_observation: whether to reduce the size of the observation
+    :param hidden_layer_size: size of networks hidden layers
+    :param save_dir: directory used to save the envs checkpoints (should link to log_dir)
+    :param skill_dynamics_observation_relabel_type: type of relabelling to apply to skill dynamics observation
+    :param skill_dynamics_relabel_type: type of skill relabelling e.g. importance sampling
+    :param is_clip_eps: size of eps clip
+    :param normalize_data: boolean to normalize_data
+    :param graph_type: type of graph used
+    :param num_components: number of components
+    :param fix_variance: boolean for fixed variance
+    :param skill_dynamics_lr: learning rate for skill dynamics
+    :param agent_lr: learning rate for agent itself
+    :param agent_gamma: gamma (discount factor) for agent
+    :param agent_entropy: entropy value for agent
+    :param debug: debug level
+    :param collect_policy_type: type of collection policy
+    :param replay_buffer_capacity: size of replay buffer
+    :param train_skill_dynamics_on_policy: skill dynamics training policy
+    :param initial_collect_steps: initial collection steps
+    :param collect_steps: collection steps
+    :param action_clipping: size of action clipping (+ve)
+    :param num_epochs: number of epochs to use
+    :param save_model: boolean, whether to save model or not
+    :param save_freq: frequency at which to save the environment key params
+    :param clear_buffer_every_iter: boolean, whether to clear the buffer @ every iteration
+    :param skill_dynamics_train_steps: number of steps to use to train each of the skill dynamics
+    :param skill_dynamics_batch_size: size of skill dynamics batch
+    :param num_samples_for_relabelling: number of samples to use for each samples relabelling
+    :param debug_skill_relabelling: boolean, whether to use skill relabelling (currently depreceated)
+    :param agent_train_steps: number of steps to use to train the SAC agent
+    :param agent_relabel_type: type of relabelling to use (e.g. 'Importance_Sampling')
+    :param agent_batch_size: size of the agent batch
+    :param record_freq: how often to record env information parameters
+    :param vid_name: general name to use for the video
+    :param deterministic_eval: boolean, whether to use deterministic evaluation
+    :param num_evals: number of evalutions to use for non-deterministic evaluation (pi is a distro NOT fixed outcome)
+    """
 
     # Initialize tensorboard logging
     self.train_summary_writer = tf.compat.v2.summary.create_file_writer(os.path.join(log_dir, 'train', 'in_graph_data'),
@@ -336,7 +637,9 @@ class DADS:
     self.skill_type = skill_type
     self.random_skills = random_skills
     self.max_env_steps = max_env_steps
-    self.py_env = self.wrap_env(min_steps_before_resample, resample_prob)
+    self.min_steps_before_resample = min_steps_before_resample
+    self.resample_prob = resample_prob
+    self.py_env = self.wrap_env()
 
     # Initialize spec attributes
     self.observation_omit_size = observation_omit_size
@@ -360,6 +663,7 @@ class DADS:
     # Initialize DADS agent
     self.save_dir = save_dir
     # self.skill_dynamics_observation_size = skill_dynamics_observation_size
+    # TODO: skill_dynamics_observation_relabel_type and skill_dynamics_relabel_type are the same variable?
     self.skill_dynamics_observation_relabel_type = skill_dynamics_observation_relabel_type
     self.skill_dynamics_relabel_type = skill_dynamics_relabel_type
     self.is_clip_eps = is_clip_eps
@@ -376,7 +680,8 @@ class DADS:
     self.agent = self.get_dads_agent()
 
     # Initialize policies
-    self.eval_policy, self.collect_policy, self.relabel_policy = self.initialize_policies(collect_policy_type)
+    self.collect_policy_type = collect_policy_type
+    self.eval_policy, self.collect_policy, self.relabel_policy = self.initialize_policies(self.collect_policy_type)
 
     # Initialize replay buffer
     self.policy_step_spec, self.trajectory_spec = self.define_buffer_spec()
@@ -402,6 +707,7 @@ class DADS:
     self.log_dir = log_dir
     self.save_model = save_model
     self.save_freq = save_freq
+    self.restore_training = restore_training
     self.clear_buffer_every_iter = clear_buffer_every_iter
     self.skill_dynamics_train_steps = skill_dynamics_train_steps
     self.skill_dynamics_batch_size = skill_dynamics_batch_size
@@ -412,20 +718,16 @@ class DADS:
     self.agent_batch_size = agent_batch_size
     self.record_freq = record_freq
     self.vid_name = vid_name
-    self.min_steps_before_resample = min_steps_before_resample
-    self.resample_prob = resample_prob
     self.deterministic_eval = deterministic_eval
     self.num_evals = num_evals
 
-  def wrap_env(self, min_steps_before_resample, resample_prob):
+  def __del__(self):
+    return
+
+  def wrap_env(self):
     """
     Wrap an environment with the skill wrapper
 
-    :num_skills: number of skills to learn i.e. size of p(z) ~ Z
-    :skill_type: types of skills to learn from p(z)
-    :preset_skill: what preset skills are used (often None)
-    :min_steps_before_resample: minimum number of steps to go before resampling skill distro
-    :resample_prob: likelihood of resampling the distribution
     :return: None
     """
     py_env = wrap_env(
@@ -434,8 +736,8 @@ class DADS:
         num_latent_skills=self.num_skills,
         skill_type=self.skill_type,
         preset_skill=None,
-        min_steps_before_resample=min_steps_before_resample,
-        resample_prob=resample_prob),
+        min_steps_before_resample=self.min_steps_before_resample,
+        resample_prob=self.resample_prob),
       max_episode_steps=self.max_env_steps
     )
     return py_env
@@ -644,10 +946,18 @@ class DADS:
     self.sess.run(self.train_summary_writer.init())
 
     time_step = self.py_env.reset()
-    self.episode_size_buffer.append(0)
-    self.episode_return_buffer.append(0.)
     iter_count = 0
     sample_count = 0
+    self.episode_size_buffer.append(0)
+    self.episode_return_buffer.append(0.)
+    if self.restore_training:
+      try:
+        sample_count = np.load(os.path.join(self.log_dir, 'sample_count.npy')).tolist()
+        iter_count = np.load(os.path.join(self.log_dir, 'iter_count.npy')).tolist()
+        self.episode_size_buffer = np.load(os.path.join(self.log_dir, 'episode_size_buffer.npy')).tolist()
+        self.episode_return_buffer = np.load(os.path.join(self.log_dir, 'episode_return_buffer.npy')).tolist()
+      except:
+        pass
 
     def _process_episode_data(ep_buffer, cur_data):
       """
@@ -1093,7 +1403,7 @@ class DADS:
       else:
         preset_skill = None
 
-      eval_env = get_environment(env_name=self.env_name)
+      eval_env = get_environment(env_name=self.env_name, env_config=self.env_config)
       eval_env = wrap_env(
         skill_wrapper.SkillWrapper(
           eval_env,
@@ -1236,6 +1546,32 @@ class DADS:
       return data
     else:
       return extrinsic_reward
+
+  def update_env_config(self, env_config):
+    """
+    Update the environment with a new config file
+
+    :param env_config:
+    :return:
+    """
+    # TODO: test this and look at how to allow dir change based on name
+    # self.sess.close()  # close current session
+    self.env_config = env_config
+    # self.__init__()
+    # self.py_env = self.wrap_env()
+    # self.define_spec()
+    # self.initialize_networks(self._normal_projection_net)
+    # self.agent = self.get_dads_agent()
+    # self.initialize_networks(self._normal_projection_net)
+    # self.eval_policy, self.collect_policy, self.relabel_policy = self.initialize_policies(self.collect_policy_type)
+    # self.policy_step_spec, self.trajectory_spec = self.define_buffer_spec()
+    # self.rbuffer, self.on_buffer = self.initialize_buffer()
+    # self.agent.build_agent_graph()
+    # self.agent.build_skill_dynamics_graph()
+    # self.agent.create_savers()
+    # self.train_checkpointer, self.policy_checkpointer, self.rb_checkpointer = self.initialize_checkpoints(
+    #   self.global_step)
+    # self.sess = self.initialize_session()
 
   def eval_agent(self):
     """
@@ -1398,62 +1734,77 @@ def main(_):
   # Setup logging
   logging.set_verbosity(logging.INFO)
 
+  # Setup initial directories
   root_dir, log_dir, save_dir = setup_top_dirs(FLAGS.logdir, FLAGS.environment)
+  log_dir, model_dir, save_dir = setup_agent_dir(log_dir, 'default_env')
 
-  # Get initial gym environment
-  dads_algo = DADS(env_name=FLAGS.environment,
-                   env_config=None,
-                   log_dir=log_dir,
-                   num_skills=FLAGS.num_skills,
-                   skill_type=FLAGS.skill_type,
-                   random_skills=FLAGS.random_skills,
-                   min_steps_before_resample=FLAGS.min_steps_before_resample,
-                   resample_prob=FLAGS.resample_prob,
-                   max_env_steps=FLAGS.max_env_steps,
-                   observation_omit_size=0,
-                   reduced_observation=FLAGS.reduced_observation,
-                   hidden_layer_size=FLAGS.hidden_layer_size,
-                   save_dir=save_dir,
-                   skill_dynamics_observation_relabel_type=FLAGS.skill_dynamics_relabel_type,
-                   skill_dynamics_relabel_type=FLAGS.skill_dynamics_relabel_type,
-                   is_clip_eps=FLAGS.is_clip_eps,
-                   normalize_data=FLAGS.normalize_data,
-                   graph_type=FLAGS.graph_type,
-                   num_components=FLAGS.num_components,
-                   fix_variance=FLAGS.fix_variance,
-                   skill_dynamics_lr=FLAGS.skill_dynamics_lr,
-                   agent_lr=FLAGS.agent_lr,
-                   agent_gamma=FLAGS.agent_gamma,
-                   agent_entropy=FLAGS.agent_entropy,
-                   debug=FLAGS.debug,
-                   collect_policy_type=FLAGS.collect_policy,
-                   replay_buffer_capacity=FLAGS.replay_buffer_capacity,
-                   train_skill_dynamics_on_policy=FLAGS.train_skill_dynamics_on_policy,
-                   initial_collect_steps=FLAGS.initial_collect_steps,
-                   collect_steps=FLAGS.collect_steps,
-                   action_clipping=FLAGS.action_clipping,
-                   num_epochs=FLAGS.num_epochs,
-                   save_model=FLAGS.save_model,
-                   save_freq=FLAGS.save_freq,
-                   clear_buffer_every_iter=FLAGS.clear_buffer_every_iter,
-                   skill_dynamics_train_steps=FLAGS.skill_dyn_train_steps,
-                   skill_dynamics_batch_size=FLAGS.skill_dyn_batch_size,
-                   num_samples_for_relabelling=FLAGS.num_samples_for_relabelling,
-                   debug_skill_relabelling=FLAGS.debug_skill_relabelling,
-                   agent_train_steps=FLAGS.agent_train_steps,
-                   agent_relabel_type=FLAGS.agent_relabel_type,
-                   agent_batch_size=FLAGS.agent_batch_size,
-                   record_freq=FLAGS.record_freq,
-                   vid_name=FLAGS.vid_name,
-                   deterministic_eval=FLAGS.deterministic_eval,
-                   num_evals=FLAGS.num_evals
-                   )
-  print(dads_algo.env)
-  print(f'Train agent for dads algorithm: {dads_algo.train_agent()}')
+  # Setup initial dads configuration, must be done in main due to use of flags
+  init_dads_config = {
+    'env_name': FLAGS.environment,
+    'env_config': None,
+    'log_dir': model_dir,
+    'num_skills': FLAGS.num_skills,
+    'skill_type': FLAGS.skill_type,
+    'random_skills': FLAGS.random_skills,
+    'min_steps_before_resample': FLAGS.min_steps_before_resample,
+    'resample_prob': FLAGS.resample_prob,
+    'max_env_steps': FLAGS.random_skills,
+    'observation_omit_size': 0,
+    'reduced_observation': FLAGS.reduced_observation,
+    'hidden_layer_size': FLAGS.hidden_layer_size,
+    'save_dir': save_dir,
+    'skill_dynamics_observation_relabel_type': FLAGS.skill_dynamics_relabel_type,
+    'skill_dynamics_relabel_type': FLAGS.skill_dynamics_relabel_type,
+    'is_clip_eps': FLAGS.is_clip_eps,
+    'normalize_data': FLAGS.normalize_data,
+    'graph_type': FLAGS.graph_type,
+    'num_components': FLAGS.num_components,
+    'fix_variance': FLAGS.fix_variance,
+    'skill_dynamics_lr': FLAGS.skill_dynamics_lr,
+    'agent_lr': FLAGS.agent_lr,
+    'agent_gamma': FLAGS.agent_gamma,
+    'agent_entropy': FLAGS.agent_entropy,
+    'debug': FLAGS.debug,
+    'collect_policy_type': FLAGS.collect_policy,
+    'replay_buffer_capacity': FLAGS.replay_buffer_capacity,
+    'train_skill_dynamics_on_policy': FLAGS.train_skill_dynamics_on_policy,
+    'initial_collect_steps': FLAGS.initial_collect_steps,
+    'collect_steps': FLAGS.collect_steps,
+    'action_clipping': FLAGS.action_clipping,
+    'num_epochs': FLAGS.num_epochs,
+    'save_model': FLAGS.save_model,
+    'save_freq': FLAGS.save_freq,
+    'clear_buffer_every_iter': FLAGS.clear_buffer_every_iter,
+    'skill_dynamics_train_steps': FLAGS.skill_dyn_train_steps,
+    'skill_dynamics_batch_size': FLAGS.skill_dyn_batch_size,
+    'num_samples_for_relabelling': FLAGS.num_samples_for_relabelling,
+    'debug_skill_relabelling': FLAGS.debug_skill_relabelling,
+    'agent_train_steps': FLAGS.agent_train_steps,
+    'agent_relabel_type': FLAGS.agent_relabel_type,
+    'agent_batch_size': FLAGS.agent_batch_size,
+    'record_freq': FLAGS.record_freq,
+    'vid_name': FLAGS.vid_name,
+    'deterministic_eval': FLAGS.deterministic_eval,
+    'num_evals': FLAGS.num_evals,
+    'restore_training': True
+  }
+
+  stub_env_config = Env_config(
+        name='stub_env',
+        ground_roughness=0,
+        pit_gap=[],
+        stump_width=[5],
+        stump_height=[2],
+        stump_float=[],
+        stair_height=[],
+        stair_width=[],
+        stair_steps=[]
+      )
+
+  ea_pairs = EnvPairs(init_dads_config, log_dir)
+  ea_pairs.train_on_new_env(stub_env_config)
+  print(ea_pairs.pairs)
 
 
 if __name__ == '__main__':
-  try:
-    tf.compat.v1.app.run(main)
-  except SystemExit:
-    pass
+  tf.compat.v1.app.run(main)
