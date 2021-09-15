@@ -53,6 +53,8 @@ from envs import bipedal_walker
 from envs import bipedal_walker_custom
 from envs.bipedal_walker_custom import Env_config
 
+from POET.mutator import Mutator
+
 import pyvirtualdisplay
 
 from lib import py_tf_policy
@@ -312,7 +314,7 @@ class EnvPairs:
 
     :return: None
     """
-    init_agent = create_agent(self.config)
+    init_agent = self._create_agent(self.config)
     perf = init_agent.train_agent()
     del init_agent
     tf.keras.backend.clear_session()
@@ -1725,7 +1727,56 @@ class DADS:
     return time_step
 
 
+class POET:
+  """Paired Open-Ended Trailblazer"""
+  def __init__(self,
+               init_agent_config,
+               log_dir,
+               poet_config,
+               mutator_config,
+               reproducer_config):
+    """
+    POET constructor
+
+    :param init_agent_config: initial configuration file for the agent
+    :param log_dir: log_directory to use for POET responses (forms part of the algorithm training itself)
+    :param poet_config: poet configuration hyper-parameters
+    :param mutator_config: Mutator configuration dictionary
+    :param reproducer_config: Reproducer configuration dictionary
+    """
+
+    self.ea_pairs = EnvPairs(init_agent_config, log_dir)
+
+    # Setup POET hyper-parameters
+    self.max_poet_iters = poet_config['max_poet_iters']
+    self.mutation_interval = poet_config['mutation_interval']
+    self.transfer_interval = poet_config['transfer_interval']
+    self.train_episodes = poet_config['train_episodes']
+
+    self.mutator = Mutator(
+      max_admitted=mutator_config['max_admitted'],
+      capacity=mutator_config['capacity'],
+      min_performance=mutator_config['min_performance'],
+      mc_low=mutator_config['mc_low'],
+      mc_high=mutator_config['mc_high'],
+      reproducer_config=reproducer_config
+    )
+    self.archived_agents = []
+
+
 def main(_):
+
+  stub_env_config = Env_config(
+        name='stub_env',
+        ground_roughness=0,
+        pit_gap=[],
+        stump_width=[5],
+        stump_height=[2],
+        stump_float=[],
+        stair_height=[],
+        stair_width=[],
+        stair_steps=[]
+      )
 
   # Setup tf values
   tf.compat.v1.enable_resource_variables()
@@ -1788,18 +1839,6 @@ def main(_):
     'num_evals': FLAGS.num_evals,
     'restore_training': True
   }
-
-  stub_env_config = Env_config(
-        name='stub_env',
-        ground_roughness=0,
-        pit_gap=[],
-        stump_width=[5],
-        stump_height=[2],
-        stump_float=[],
-        stair_height=[],
-        stair_width=[],
-        stair_steps=[]
-      )
 
   ea_pairs = EnvPairs(init_dads_config, log_dir)
   ea_pairs.train_on_new_env(stub_env_config)
