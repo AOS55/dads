@@ -1738,7 +1738,7 @@ def main(_):
   root_dir, log_dir, save_dir = setup_top_dirs(FLAGS.logdir, FLAGS.environment)
   log_dir, model_dir, save_dir = setup_agent_dir(log_dir, 'default_env')
 
-  # Setup initial dads configuration
+  # Setup initial dads configuration, must be done in main due to use of flags
   init_dads_config = {
     'env_name': FLAGS.environment,
     'env_config': None,
@@ -1789,7 +1789,6 @@ def main(_):
     'restore_training': True
   }
 
-  #
   stub_env_config = Env_config(
         name='stub_env',
         ground_roughness=0,
