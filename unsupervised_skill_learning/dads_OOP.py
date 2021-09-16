@@ -54,6 +54,7 @@ from envs import bipedal_walker_custom
 from envs.bipedal_walker_custom import Env_config
 
 from POET.mutator import Mutator
+from POET.utils import EAPair
 
 import pyvirtualdisplay
 
@@ -318,13 +319,19 @@ class EnvPairs:
     perf = init_agent.train_agent()
     del init_agent
     tf.keras.backend.clear_session()
-    self.pairs.append({'config': self.config, 'performance': perf, 'log_dir': self.log_dir})
+    init_ea_pair = EAPair(env_name=self.config['env_name'],
+                          env_config=self.config['env_config'],
+                          agent_config=self.config,
+                          agent_score=perf,
+                          pata_ec=None)
+
+    self.pairs.append(init_ea_pair)
 
   def train_on_new_env(self, env_config):
     """
     Train a new agent on an existing env config
     :param env_config:
-    :return:
+    :return: None
     """
     log_dir, model_dir, save_dir = setup_agent_dir(self.log_dir, env_config.name)
     self.config['name'] = env_config.name
@@ -335,7 +342,12 @@ class EnvPairs:
     perf = agent.train_agent()
     del agent
     tf.keras.backend.clear_session()
-    self.pairs.append({'config': env_config, 'performance': perf, 'log_dir': log_dir})
+    ea_pair = EAPair(env_name=self.config['env_name'],
+                     env_config=self.config['env_config'],
+                     agent_config=self.config,
+                     agent_score=perf,
+                     pata_ec=None)
+    self.pairs.append(ea_pair)
 
   @staticmethod
   def _get_agent_config(current_dads) -> dict:
@@ -1581,6 +1593,7 @@ class DADS:
 
     :return:
     """
+    # TODO: Add method to allow single eval
     return
 
   @staticmethod

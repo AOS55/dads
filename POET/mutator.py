@@ -1,9 +1,9 @@
-from reproducer import Reproducer
+from POET.reproducer import Reproducer
 
 
 class Mutator:
   """
-  Mutate Environment agent pairs
+  Mutate environment agent pairs
   """
   def __init__(self,
                max_admitted,
@@ -34,9 +34,11 @@ class Mutator:
     for pair in ea_pairs:
       if self._eligible_to_reproduce(pair):
         parent_list.append(pair)
-    # TODO: need to evaluate an mc_score for each child environment to test mc_criterion
+
+    # TODO: Include a check for environment already existing
     child_list = self.reproducer.mutate_list(parent_list)
     for child in child_list:
+      # TODO: Need to evaluate an mc_score for each child environment to test mc_criterion agent of each?
       if not self._mc_satisfied(child['performance'][0]):
         child_list.remove(child)  # remove child if too easy or too hard with parent agent (i.e. kills behaviours)
     child_list = self._rank_by_novelty(ea_pairs, child_list)
