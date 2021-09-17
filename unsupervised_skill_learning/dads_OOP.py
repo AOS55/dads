@@ -423,7 +423,7 @@ class EnvPairs:
       score = self.evaluate_agent_on_env(agent.agent_config['log_dir'],
                                          agent.agent_config['save_dir'], candidate_env_config)
       if best_score is None or best_score < score[0]:
-        best_agent = agent
+        best_agent = copy.deepcopy(agent.agent_config)
         best_score = score
 
     return best_agent, best_score
