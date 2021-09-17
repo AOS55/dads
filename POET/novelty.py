@@ -1,7 +1,6 @@
 import numpy as np
 from POET.stats import compute_centered_ranks
 
-
 def euclidian_distance(x, y):
   """
   Given 2 numpy arrays calculate the euclidian distance
@@ -23,12 +22,12 @@ def euclidian_distance(x, y):
 # TODO: Understand how this method works, look at diagram in report and track data
 def compute_novelty_vs_archive(ea_pairs, candidate_env, k, low, high):
   distances = []
-  candidate_env.update_pata_ec(ea_pairs.archived_agents, ea_pairs.active_agents, low, high)
-  for agent in ea_pairs.archived_agents:
-    distances.append(euclidian_distance(agent.pata_ec, candidate_env.pata_ec))
+  pata_ec = ea_pairs.update_pata_ec(candidate_env, low, high)
+  for agent in ea_pairs.pairs:
+    distances.append(euclidian_distance(agent.pata_ec, pata_ec))
 
-  for agent in ea_pairs.active_agents:
-    distances.append(euclidian_distance(agent.pata_ec, candidate_env.pata_ec))
+  for agent in ea_pairs.archived_pairs:
+    distances.append(euclidian_distance(agent.pata_ec, pata_ec))
 
   distances = np.array(distances)
   top_k_indices = distances.argsort()[:k]

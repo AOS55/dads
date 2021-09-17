@@ -1,5 +1,6 @@
 from envs.bipedal_walker_custom import Env_config
 import numpy as np
+from POET.utils import EAPair
 
 
 def name_env_config(ground_roughness,
@@ -140,16 +141,19 @@ class Reproducer:
 
     return child
 
-  def mutate_list(self, parent_list):
+  def mutate_list(self, parent_list, ea_pairs):
     """
     Mutate a list of parents to generate a list of parents
 
     :param parent_list:
+    :ea_pairs:
     :return: list of tuples containing (child_config, parent.ea_pair)
     """
     child_list = []
     while len(child_list) < self.max_children:
       for parent in parent_list:
         print(parent.env_config)
-        child_list.append((self.reproduce(parent.env_config), parent))
+        child_env_config = self.reproduce(parent.env_config)
+        child = ea_pairs.update_ea_pair(parent, parent.env_name, child_env_config)
+        child_list.append(child)
     return child_list

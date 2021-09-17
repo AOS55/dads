@@ -40,25 +40,30 @@ class Mutator:
 
     # Generate child_list and rank by novelty, remove if mc_criteria not satisfied
     # TODO: Include a check for environment already existing
-    child_list = self.reproducer.mutate_list(parent_list)
+    child_list = self.reproducer.mutate_list(parent_list, ea_pairs)
     child_novelty_list = []
     for child in child_list:
-      child.agent_score = ea_pairs.evaluate_agent_on_env(child.agent_config['save_dir'], child.env_config)
-      if not self._mc_satisfied(child.agent_score[0]):
-        child_list.remove(child)
-      else:
-        novelty_score = compute_novelty_vs_archive(ea_pairs=ea_pairs,
-                                                   candidate_env=child.env_config,
-                                                   k=5,
-                                                   low=self.min_performance,
-                                                   high=-self.min_performance)
-        child_novelty_list.append((child, novelty_score))
-    child_list = [x[0] for x in child_novelty_list]
+      parent_agent_dir = [(pair.agent_config['log_dir'], pair.agent_config['save_dir']) for pair in parent_list
+                          if pair.env_name == child.parent]
+      score = ea_pairs.evaluate_agent_on_env(parent_agent_dir[0][0], parent_agent_dir[0][1], child.env_config)
+      child = child._replace(agent_score=score)
+      if len(ea_pairs.pairs) > 1:
+        if not self._mc_satisfied(child[1].agent_score[0]):
+          child_list.remove(child)
+        else:
+          novelty_score = compute_novelty_vs_archive(ea_pairs=ea_pairs,
+                                                     candidate_env=child[0],
+                                                     k=5,
+                                                     low=self.min_performance,
+                                                     high=-self.min_performance)
+          child_novelty_list.append((child, novelty_score))
+        child_list = [x[0] for x in child_novelty_list]
 
     # Evaluate which policy to use on the new environment and ensure it satisfies the mc_criteria
     admitted = 0
     for child in child_list:
-      child.agent_config, child.agent_score = ea_pairs.evaluate_transfer(candidate_env_config=child.env_config)
+      agent_config, agent_score = ea_pairs.evaluate_transfer(candidate_env_config=child.env_config)
+      child = child._replace(agent_config=agent_config, agent_score=agent_score)
       if self._mc_satisfied(child.agent_score[0]):
         ea_pairs.pairs.append(child)
     return ea_pairs

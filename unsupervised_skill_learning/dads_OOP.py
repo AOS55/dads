@@ -9,6 +9,7 @@ import io
 from absl import logging, flags
 import functools
 
+import copy
 import sys
 sys.path.append(os.path.abspath('./'))
 
@@ -250,7 +251,7 @@ def get_environment(env_name='point_mass', env_config=None):
       env_config = Env_config(
         name='default_env',
         ground_roughness=0,
-        pit_gap=[2],
+        pit_gap=[],
         stump_width=[],
         stump_height=[],
         stump_float=[],
@@ -308,8 +309,7 @@ class EnvPairs:
     self.config = init_config
     self.log_dir = log_dir
     self.pairs = []  # list of active pairs being tracked of type EAPair
-    self.active_agents = []  # list of active agents (found in pairs configs)
-    self.archived_agents = []  # list of archived agents (removed as outside capacity for training)
+    self.archived_pairs = []  # list of pairs that have been archived of type EAPair
     self.initialize_agent()
 
   def initialize_agent(self):
@@ -327,9 +327,9 @@ class EnvPairs:
                           agent_config=self.config,
                           agent_score=perf,
                           parent=None,
-                          pata_ec=None)
+                          pata_ec=0.5)
 
-    self.pairs.append(init_ea_pair)
+    self.pairs.append(copy.deepcopy(init_ea_pair))
 
   def train_on_new_env(self, env_config):
     """
@@ -344,30 +344,35 @@ class EnvPairs:
     self.config['save_dir'] = save_dir
     agent = self._create_agent(self.config)
     perf = agent.train_agent()
+    # TODO: think of how to specify parent & pata_ec
     del agent
     tf.keras.backend.clear_session()
     ea_pair = EAPair(env_name=self.config['env_name'],
                      env_config=self.config['env_config'],
                      agent_config=self.config,
                      agent_score=perf,
+                     parent=None,
                      pata_ec=None)
-    self.pairs.append(ea_pair)
+    self.pairs.append(copy.deepcopy(ea_pair))
 
-  def evaluate_agent_on_env(self, agent_dir, env_config):
+  def evaluate_agent_on_env(self, log_dir, save_dir, env_config):
     """
     Given a previously trained agent evaluate the performance of a different agent on this env
 
-    :param agent_dir: directory of agent model to train agent on
+    :param log_dir: directory of agent log_dir to train agent on
+    :param save_dir: directory of agent model_dir to train agent on
     :param env_config:
     :return:
     """
-    self.config['name'] = env_config.name
+    # self.config['name'] = env_config.name
     self.config['env_config'] = env_config
-    self.config['log_dir'] = agent_dir  # use the agent model dir to train on
+    self.config['log_dir'] = log_dir  # use the agent model dir to train on
+    self.config['save_dir'] = save_dir
     self.config['num_epochs'] = 5  # eval over 5 epochs of training (sample by training on env)
     self.config['record_freq'] = 10  # set record_freq to be higher than num_epochs to evaluate on
     self.config['save_freq'] = 10  # set save_freq to be higher than num_epochs to evaluate on
-    # TODO: Check this is not overwriting the saved model, should just deploy the model for testing
+    self.config['restore_training'] = False
+    # TODO: Check this is not overwriting the saved model, should just deploy the model for evaluation
     agent = self._create_agent(self.config)
     perf = agent.train_agent()
     del agent
@@ -391,14 +396,16 @@ class EnvPairs:
       return score
 
     raw_scores = []
-    for agent in self.archived_agents:
-      score = self.evaluate_agent_on_env(agent, candidate_env_config)
-      raw_scores.append(_cap_score(score, lower_bound, upper_bound))
-    for agent in self.active_agents:
-      score = self.evaluate_agent_on_env(agent, candidate_env_config)
-      raw_scores.append(_cap_score(score, lower_bound, upper_bound))
-
-    pata_ec = compute_centered_ranks(np.array(raw_scores))
+    for agent in self.pairs:
+      score = self.evaluate_agent_on_env(agent.agent_config['save_model'], candidate_env_config)
+      raw_scores.append(_cap_score(score[0], lower_bound, upper_bound))
+    for agent in self.archived_pairs:
+      score = self.evaluate_agent_on_env(agent.agent_config['save_model'], candidate_env_config)
+      raw_scores.append(_cap_score(score[0], lower_bound, upper_bound))
+    if len(raw_scores) > 1:
+      pata_ec = compute_centered_ranks(np.array(raw_scores))
+    else:
+      pata_ec = 0.5
     return pata_ec
 
   def evaluate_transfer(self, candidate_env_config):
@@ -412,14 +419,30 @@ class EnvPairs:
     best_score = None
     best_agent = None
 
-    for agent in self.active_agents:
-      score = self.evaluate_agent_on_env(agent, candidate_env_config)
+    for agent in self.pairs:
+      score = self.evaluate_agent_on_env(agent.agent_config['log_dir'],
+                                         agent.agent_config['save_dir'], candidate_env_config)
       if best_score is None or best_score < score[0]:
-        best_score = score
         best_agent = agent
+        best_score = score
 
     return best_agent, best_score
 
+  def update_ea_pair(self, pair, parent_name, env_config):
+    log_dir, model_dir, save_dir = setup_agent_dir(self.log_dir, env_config.name)
+    new_pair = EAPair(env_name=env_config.name,
+                      env_config=env_config,
+                      agent_config=copy.deepcopy(pair.agent_config),  # need to deepcopy to prevent mutating parent
+                      agent_score=None,
+                      parent=parent_name,
+                      pata_ec=0.5)
+    new_agent_config = new_pair.agent_config
+    new_agent_config['log_dir'] = model_dir
+    new_agent_config['save_dir'] = save_dir
+    new_agent_config['env_name'] = env_config.name
+    new_agent_config['env_config'] = env_config
+    new_pair = new_pair._replace(agent_config=new_agent_config)
+    return new_pair
 
   @staticmethod
   def _get_agent_config(current_dads) -> dict:
@@ -1904,8 +1927,8 @@ def main(_):
         name='stub_env',
         ground_roughness=0,
         pit_gap=[],
-        stump_width=[5],
-        stump_height=[2],
+        stump_width=[],
+        stump_height=[],
         stump_float=[],
         stair_height=[],
         stair_width=[],
@@ -1926,7 +1949,7 @@ def main(_):
   init_env_config = Env_config(
     name='default_env',
     ground_roughness=0,
-    pit_gap=[2],
+    pit_gap=[],
     stump_width=[],
     stump_height=[],
     stump_float=[],
