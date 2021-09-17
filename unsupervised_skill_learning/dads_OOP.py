@@ -55,6 +55,7 @@ from envs.bipedal_walker_custom import Env_config
 
 from POET.mutator import Mutator
 from POET.utils import EAPair
+from POET.stats import compute_centered_ranks
 
 import pyvirtualdisplay
 
@@ -306,7 +307,9 @@ class EnvPairs:
   def __init__(self, init_config, log_dir):
     self.config = init_config
     self.log_dir = log_dir
-    self.pairs = []
+    self.pairs = []  # list of active pairs being tracked of type EAPair
+    self.active_agents = []  # list of active agents (found in pairs configs)
+    self.archived_agents = []  # list of archived agents (removed as outside capacity for training)
     self.initialize_agent()
 
   def initialize_agent(self):
@@ -323,6 +326,7 @@ class EnvPairs:
                           env_config=self.config['env_config'],
                           agent_config=self.config,
                           agent_score=perf,
+                          parent=None,
                           pata_ec=None)
 
     self.pairs.append(init_ea_pair)
@@ -348,6 +352,74 @@ class EnvPairs:
                      agent_score=perf,
                      pata_ec=None)
     self.pairs.append(ea_pair)
+
+  def evaluate_agent_on_env(self, agent_dir, env_config):
+    """
+    Given a previously trained agent evaluate the performance of a different agent on this env
+
+    :param agent_dir: directory of agent model to train agent on
+    :param env_config:
+    :return:
+    """
+    self.config['name'] = env_config.name
+    self.config['env_config'] = env_config
+    self.config['log_dir'] = agent_dir  # use the agent model dir to train on
+    self.config['num_epochs'] = 5  # eval over 5 epochs of training (sample by training on env)
+    self.config['record_freq'] = 10  # set record_freq to be higher than num_epochs to evaluate on
+    self.config['save_freq'] = 10  # set save_freq to be higher than num_epochs to evaluate on
+    # TODO: Check this is not overwriting the saved model, should just deploy the model for testing
+    agent = self._create_agent(self.config)
+    perf = agent.train_agent()
+    del agent
+    tf.keras.backend.clear_session()
+    return perf
+
+  def update_pata_ec(self, candidate_env_config, lower_bound, upper_bound):
+    """
+    Based on the current group of agents calculate the PATA-EC (Performance of All Trained Agents)
+
+    :param candidate_env_config: configuration for candidate environments
+    :param lower_bound: lower bound for agent
+    :param upper_bound: upper bound for agent
+    :return: pata_ec score
+    """
+    def _cap_score(score, lower, upper):
+      if score < lower:
+        score = lower
+      elif score > upper:
+        score = upper
+      return score
+
+    raw_scores = []
+    for agent in self.archived_agents:
+      score = self.evaluate_agent_on_env(agent, candidate_env_config)
+      raw_scores.append(_cap_score(score, lower_bound, upper_bound))
+    for agent in self.active_agents:
+      score = self.evaluate_agent_on_env(agent, candidate_env_config)
+      raw_scores.append(_cap_score(score, lower_bound, upper_bound))
+
+    pata_ec = compute_centered_ranks(np.array(raw_scores))
+    return pata_ec
+
+  def evaluate_transfer(self, candidate_env_config):
+    """
+    Given an env_config find which active agent is best suited for the env
+
+    :param candidate_env_config: env_config of the candidate env
+    :return: best_agent to use with candidate_env
+    """
+
+    best_score = None
+    best_agent = None
+
+    for agent in self.active_agents:
+      score = self.evaluate_agent_on_env(agent, candidate_env_config)
+      if best_score is None or best_score < score[0]:
+        best_score = score
+        best_agent = agent
+
+    return best_agent, best_score
+
 
   @staticmethod
   def _get_agent_config(current_dads) -> dict:
@@ -1497,7 +1569,7 @@ class DADS:
     :param predict_trajectory_steps: number of steps to predict the trajectory for
     :param return_data: boolean, to return data
     :param close_environment: boolean, set true to close environment at end
-    :return:
+    :return: data or extrinsic reward
     """
     time_step = env.reset()
     data = []
@@ -1591,9 +1663,46 @@ class DADS:
     """
     Evaluate the dads agent using the appropriate policy
 
-    :return:
+    :return: performance of the agent on a given environment
     """
-    # TODO: Add method to allow single eval
+    # TODO: Add method to allow single eval -> Harder than it looks
+
+    # time_step = self.py_env.reset()
+    # iter_count = 0
+    # sample_count = 0
+    # self.episode_size_buffer.append(0)
+    # self.episode_return_buffer.append(0.)
+    #
+    # def _process_episode_data(ep_buffer, cur_data):
+    #   """
+    #   Process episode dat and only keep the last 100 data points of the buffer
+    #
+    #   :param ep_buffer: current episode buffer
+    #   :param cur_data: new data collected
+    #   :return: buffer updated with new data
+    #   """
+    #   ep_buffer[-1] += cur_data[0]
+    #   ep_buffer += cur_data[1:]
+    #
+    #   # Only keep the last 100 episodes
+    #   if len(ep_buffer) > 101:
+    #     ep_buffer = ep_buffer[-101:]
+    #   return ep_buffer
+    #
+    # def _filter_trajectories(trajectory):
+    #   """
+    #   Remove invalid transactions in the buffer that might not have been consecutive in the episode
+    #
+    #   :param trajectory: trajectory to filter out
+    #   :return: nested map structure
+    #   """
+    #   valid_indices = (trajectory.step_type[:, 0] != 2)
+    #   return nest.map_structure(lambda x: x[valid_indices], trajectory)
+    #
+    # input_obs = trajectories.observation[:, 0, :-self._latent_size]
+    # cur_skill = trajectories.observation[:, 0, :-self._latent_size:]
+    # target_obs = trajectories.observation[:, 1, :-self._latent_size]
+
     return
 
   @staticmethod
@@ -1774,7 +1883,19 @@ class POET:
       mc_high=mutator_config['mc_high'],
       reproducer_config=reproducer_config
     )
-    self.archived_agents = []
+
+  def run(self):
+    """
+    Run main POET loop, entry point for main POET algorithm after construction
+
+    :return: None
+    """
+    for poet_step in range(self.max_poet_iters):
+      if poet_step > 0 and poet_step % self.mutation_interval:
+        self.mutator.mutate_env(self.ea_pairs)
+      # for idx, ea_pair in enumerate(self.ea_pairs.pairs):
+      #   if idx >= 0:
+      #     self.ea_pairs
 
 
 def main(_):
@@ -1802,10 +1923,22 @@ def main(_):
   root_dir, log_dir, save_dir = setup_top_dirs(FLAGS.logdir, FLAGS.environment)
   log_dir, model_dir, save_dir = setup_agent_dir(log_dir, 'default_env')
 
+  init_env_config = Env_config(
+    name='default_env',
+    ground_roughness=0,
+    pit_gap=[2],
+    stump_width=[],
+    stump_height=[],
+    stump_float=[],
+    stair_height=[],
+    stair_width=[],
+    stair_steps=[]
+  )
+
   # Setup initial dads configuration, must be done in main due to use of flags
   init_dads_config = {
     'env_name': FLAGS.environment,
-    'env_config': None,
+    'env_config': init_env_config,
     'log_dir': model_dir,
     'num_skills': FLAGS.num_skills,
     'skill_type': FLAGS.skill_type,
@@ -1853,9 +1986,41 @@ def main(_):
     'restore_training': True
   }
 
-  ea_pairs = EnvPairs(init_dads_config, log_dir)
-  ea_pairs.train_on_new_env(stub_env_config)
-  print(ea_pairs.pairs)
+  poet_config = {
+    'max_poet_iters': 20,
+    'mutation_interval': 4,
+    'transfer_interval': 8,
+    'train_episodes': 10
+  }
+
+  mutator_config = {
+    'max_admitted': 6,
+    'capacity': 15,
+    'min_performance': -4000,
+    'mc_low': -4000,
+    'mc_high': 4000,
+  }
+
+  reproducer_config = {
+    'env_categories': ['pit', 'stump', 'stair'],
+    'master_seed': 4,
+    'max_children': 3
+  }
+
+  poet = POET(init_dads_config,
+              log_dir,
+              poet_config=poet_config,
+              mutator_config=mutator_config,
+              reproducer_config=reproducer_config)
+  poet.run()
+  print(poet)
+
+  # ea_pairs = EnvPairs(init_dads_config, log_dir)
+  # ea_pairs.train_on_new_env(stub_env_config)
+  # import pprint
+  # pp = pprint.PrettyPrinter(indent=4)
+  # pp.pprint(ea_pairs.pairs)
+  # # TODO: manage access to agent_dir and env_config
 
 
 if __name__ == '__main__':

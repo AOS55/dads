@@ -71,7 +71,7 @@ class Reproducer:
 
     return arr
 
-  def mutate(self, parent):
+  def reproduce(self, parent):
 
     ground_roughness = parent.ground_roughness
     pit_gap = list(parent.pit_gap)
@@ -141,8 +141,15 @@ class Reproducer:
     return child
 
   def mutate_list(self, parent_list):
+    """
+    Mutate a list of parents to generate a list of parents
+
+    :param parent_list:
+    :return: list of tuples containing (child_config, parent.ea_pair)
+    """
     child_list = []
     while len(child_list) < self.max_children:
       for parent in parent_list:
-        child_list.append(self.mutate(parent))
+        print(parent.env_config)
+        child_list.append((self.reproduce(parent.env_config), parent))
     return child_list

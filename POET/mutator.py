@@ -1,5 +1,5 @@
 from POET.reproducer import Reproducer
-
+from POET.novelty import compute_novelty_vs_archive
 
 class Mutator:
   """
@@ -25,26 +25,46 @@ class Mutator:
 
   def mutate_env(self, ea_pairs):
     """
-    Mutate the environment agent-pairs into children and add to list of ea_pairs
+    Mutate the environment-agent pairs
 
-    :param ea_pairs:
+    :param ea_pairs: instance of EnvPairs
     :return: ea_pairs
     """
     parent_list = []
-    for pair in ea_pairs:
-      if self._eligible_to_reproduce(pair):
-        parent_list.append(pair)
+    ea_pair_list = ea_pairs.pairs
 
+    # Check if parent is eligible to reproduce for offspring
+    for ea_pair in ea_pair_list:
+      if self._eligible_to_reproduce(ea_pair):
+        parent_list.append(ea_pair)
+
+    # Generate child_list and rank by novelty, remove if mc_criteria not satisfied
     # TODO: Include a check for environment already existing
     child_list = self.reproducer.mutate_list(parent_list)
+    child_novelty_list = []
     for child in child_list:
-      # TODO: Need to evaluate an mc_score for each child environment to test mc_criterion agent of each?
-      if not self._mc_satisfied(child['performance'][0]):
-        child_list.remove(child)  # remove child if too easy or too hard with parent agent (i.e. kills behaviours)
-    child_list = self._rank_by_novelty(ea_pairs, child_list)
+      child.agent_score = ea_pairs.evaluate_agent_on_env(child.agent_config['save_dir'], child.env_config)
+      if not self._mc_satisfied(child.agent_score[0]):
+        child_list.remove(child)
+      else:
+        novelty_score = compute_novelty_vs_archive(ea_pairs=ea_pairs,
+                                                   candidate_env=child.env_config,
+                                                   k=5,
+                                                   low=self.min_performance,
+                                                   high=-self.min_performance)
+        child_novelty_list.append((child, novelty_score))
+    child_list = [x[0] for x in child_novelty_list]
+
+    # Evaluate which policy to use on the new environment and ensure it satisfies the mc_criteria
+    admitted = 0
+    for child in child_list:
+      child.agent_config, child.agent_score = ea_pairs.evaluate_transfer(candidate_env_config=child.env_config)
+      if self._mc_satisfied(child.agent_score[0]):
+        ea_pairs.pairs.append(child)
+    return ea_pairs
 
   def _eligible_to_reproduce(self, pair):
-    if pair['performance'][0] >= self.min_performance:
+    if pair.agent_score[0] >= self.min_performance:
       return True
     else:
       return False
@@ -54,8 +74,3 @@ class Mutator:
       return False
     else:
       return True
-
-  @staticmethod
-  def _rank_by_novelty(ea_pairs, child_list):
-    # TODO: Implement a PATA-EC form of of novelty ranking, look @ UBER POET implementation
-    return child_list
