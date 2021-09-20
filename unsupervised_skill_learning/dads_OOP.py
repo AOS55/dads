@@ -37,7 +37,7 @@ from tf_agents.specs import tensor_spec
 from tf_agents.utils import common
 from tf_agents.utils import nest_utils
 
-import dads_agent
+from unsupervised_skill_learning import dads_agent
 
 from envs import skill_wrapper
 from envs import video_wrapper
@@ -243,10 +243,9 @@ def get_environment(env_name='point_mass', env_config=None):
   elif env_name == 'point_mass':
     env = point_mass.PointMassEnv(expose_goal=False, expose_velocity=False)
   elif env_name == 'bipedal_walker':
-    pyvirtualdisplay.Display(visible=0, size=(1400, 900)).start()
+    # pyvirtualdisplay.Display(visible=0, size=(1400, 900)).start()
     env = bipedal_walker.BipedalWalker()
   elif env_name == 'bipedal_walker_custom':
-    pyvirtualdisplay.Display(visible=0, size=(1400, 900)).start()
     if env_config is None:
       env_config = Env_config(
         name='default_env',
@@ -331,6 +330,24 @@ class EnvPairs:
 
     self.pairs.append(copy.deepcopy(init_ea_pair))
 
+  def train_agent(self, pair):
+    """
+    Train an ea_list agent for a further number of steps
+
+    :param pair: current environment-agent config
+    :return: pair with updated performance & model
+    """
+    log_dir, model_dir, save_dir = setup_agent_dir(self.log_dir, pair.env_config.name)
+    self.config['name'] = pair.env_config.name
+    self.config['env_config'] = pair.env_config
+    self.config['log_dir'] = model_dir
+    self.config['save_dir'] = save_dir
+    agent = self._create_agent(self.config)
+    perf = agent.train_agent()
+    del agent
+    pair.agent_score = perf
+    return pair
+
   def train_on_new_env(self, env_config):
     """
     Train a new agent on an existing env config
@@ -344,7 +361,6 @@ class EnvPairs:
     self.config['save_dir'] = save_dir
     agent = self._create_agent(self.config)
     perf = agent.train_agent()
-    # TODO: think of how to specify parent & pata_ec
     del agent
     tf.keras.backend.clear_session()
     ea_pair = EAPair(env_name=self.config['env_name'],
@@ -397,15 +413,17 @@ class EnvPairs:
 
     raw_scores = []
     for agent in self.pairs:
-      score = self.evaluate_agent_on_env(agent.agent_config['save_model'], candidate_env_config)
+      score = self.evaluate_agent_on_env(agent.agent_config['log_dir'], agent.agent_config['save_model'],
+                                         candidate_env_config)
       raw_scores.append(_cap_score(score[0], lower_bound, upper_bound))
     for agent in self.archived_pairs:
-      score = self.evaluate_agent_on_env(agent.agent_config['save_model'], candidate_env_config)
+      score = self.evaluate_agent_on_env(agent.agent_config['log_dir'], agent.agent_config['save_model'],
+                                         candidate_env_config)
       raw_scores.append(_cap_score(score[0], lower_bound, upper_bound))
     if len(raw_scores) > 1:
       pata_ec = compute_centered_ranks(np.array(raw_scores))
     else:
-      pata_ec = 0.5
+      pata_ec = [0.5]
     return pata_ec
 
   def evaluate_transfer(self, candidate_env_config):
@@ -422,7 +440,7 @@ class EnvPairs:
     for agent in self.pairs:
       score = self.evaluate_agent_on_env(agent.agent_config['log_dir'],
                                          agent.agent_config['save_dir'], candidate_env_config)
-      if best_score is None or best_score < score[0]:
+      if best_score is None or best_score[0] < score[0]:
         best_agent = copy.deepcopy(agent.agent_config)
         best_score = score
 
@@ -1303,7 +1321,9 @@ class DADS:
           action_step = action_step._replace(
             info=policy_step.set_log_probability(action_step.info, cur_action_log_prob)
           )
-
+      if np.isnan(action_step.action).any():
+        print(f'action_step.action has a NaN problem: {action_step.action}')
+      # print(f'action_step.action: {action_step.action}')
       next_time_step = self.py_env.step(action_step.action)
       cur_return += next_time_step.reward
 
@@ -1914,11 +1934,23 @@ class POET:
     :return: None
     """
     for poet_step in range(self.max_poet_iters):
-      if poet_step > 0 and poet_step % self.mutation_interval:
-        self.mutator.mutate_env(self.ea_pairs)
-      # for idx, ea_pair in enumerate(self.ea_pairs.pairs):
-      #   if idx >= 0:
-      #     self.ea_pairs
+      if poet_step % self.mutation_interval:
+        self.ea_pairs.pairs, self.ea_pairs.archived_pairs = self.mutator.mutate_env(self.ea_pairs)
+      print(f'mutated {poet_step} times')
+      # Train each ea_pair in list
+      for idx, pair in enumerate(self.ea_pairs.pairs):
+        if idx > 0:
+          pair = self.ea_pairs.train_agent(pair)
+          self.ea_pairs.pairs[idx] = pair
+      # Attempt mutation if able
+      for idx, pair in enumerate(self.ea_pairs.pairs):
+        if idx > 0 and poet_step % self.mutation_interval:
+          eval_pairs = self.ea_pairs.pairs
+          eval_pairs.remove(pair)
+          best_agent, best_score = self.ea_pairs.evaluate_transfer(pair.env_config)
+          pair = pair._replace(agent_config=best_agent, agent_score=best_score)
+          self.ea_pairs.pairs[idx] = pair
+
 
 
 def main(_):
@@ -2025,7 +2057,7 @@ def main(_):
   }
 
   reproducer_config = {
-    'env_categories': ['pit', 'stump', 'stair'],
+    'env_categories': ['pit'],
     'master_seed': 4,
     'max_children': 3
   }
@@ -2036,7 +2068,7 @@ def main(_):
               mutator_config=mutator_config,
               reproducer_config=reproducer_config)
   poet.run()
-  print(poet)
+  print('Finished running POET!')
 
   # ea_pairs = EnvPairs(init_dads_config, log_dir)
   # ea_pairs.train_on_new_env(stub_env_config)
@@ -2047,4 +2079,5 @@ def main(_):
 
 
 if __name__ == '__main__':
+  pyvirtualdisplay.Display(visible=0, size=(1400, 900)).start()
   tf.compat.v1.app.run(main)

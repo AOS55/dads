@@ -28,7 +28,7 @@ import tensorflow as tf
 
 from tf_agents.agents.sac import sac_agent
 
-import skill_dynamics
+from unsupervised_skill_learning import skill_dynamics
 
 nest = tf.nest
 

@@ -138,7 +138,7 @@ class Reproducer:
       stair_height=stair_height,
       stair_width=stair_width,
       stair_steps=stair_steps)
-
+    # print(f'child env config is: {child}')
     return child
 
   def mutate_list(self, parent_list, ea_pairs):
@@ -146,7 +146,7 @@ class Reproducer:
     Mutate a list of parents to generate a list of parents
 
     :param parent_list:
-    :ea_pairs:
+    :param ea_pairs:
     :return: list of tuples containing (child_config, parent.ea_pair)
     """
     child_list = []

@@ -67,7 +67,7 @@ TERRAIN_HEIGHT = VIEWPORT_H / SCALE / 4
 TERRAIN_GRASS = 10  # low long are grass spots, in steps
 TERRAIN_STARTPAD = 20  # in steps
 FRICTION = 2.5
-
+print(f'vertices: {[(x / SCALE, y / SCALE) for x, y in HULL_POLY]}')
 HULL_FD = fixtureDef(
     shape=polygonShape(vertices=[(x / SCALE, y / SCALE) for x, y in HULL_POLY]),
     density=5.0,

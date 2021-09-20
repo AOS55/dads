@@ -1,6 +1,7 @@
 from POET.reproducer import Reproducer
 from POET.novelty import compute_novelty_vs_archive
 
+
 class Mutator:
   """
   Mutate environment agent pairs
@@ -32,6 +33,7 @@ class Mutator:
     """
     parent_list = []
     ea_pair_list = ea_pairs.pairs
+    archived_pairs = ea_pairs.archived_pairs
 
     # Check if parent is eligible to reproduce for offspring
     for ea_pair in ea_pair_list:
@@ -48,11 +50,11 @@ class Mutator:
       score = ea_pairs.evaluate_agent_on_env(parent_agent_dir[0][0], parent_agent_dir[0][1], child.env_config)
       child = child._replace(agent_score=score)
       if len(ea_pairs.pairs) > 1:
-        if not self._mc_satisfied(child[1].agent_score[0]):
+        if not self._mc_satisfied(child.agent_score[0]):
           child_list.remove(child)
         else:
           novelty_score = compute_novelty_vs_archive(ea_pairs=ea_pairs,
-                                                     candidate_env=child[0],
+                                                     candidate_env=child.env_config,
                                                      k=5,
                                                      low=self.min_performance,
                                                      high=-self.min_performance)
@@ -66,7 +68,14 @@ class Mutator:
       child = child._replace(agent_config=agent_config, agent_score=agent_score)
       if self._mc_satisfied(child.agent_score[0]):
         ea_pairs.pairs.append(child)
-    return ea_pairs
+        admitted += 1
+      if admitted >= self.max_capacity:
+        break
+
+    if len(ea_pairs.pairs) > self.max_capacity:
+      num_removals = len(ea_pairs.pairs) - self.max_capacity
+      ea_pairs, archived_pairs = self._remove_oldest(ea_pairs.pairs, ea_pairs.archived_pairs, num_removals)
+    return ea_pairs, archived_pairs
 
   def _eligible_to_reproduce(self, pair):
     if pair.agent_score[0] >= self.min_performance:
@@ -79,3 +88,18 @@ class Mutator:
       return False
     else:
       return True
+
+  @staticmethod
+  def _remove_oldest(ea_pairs, archived_pairs, num_removals):
+    """
+    Remove oldest pairs to limit size of active env buffers
+    :param num_removals: the number of elements to remove from the end of the list
+    :return: None
+    """
+    for pair in reversed(ea_pairs):
+      if num_removals > 0:
+        ea_pairs.remove(pair)
+        archived_pairs.append(pair)
+      else:
+        break
+    return ea_pairs, archived_pairs
