@@ -330,11 +330,12 @@ class EnvPairs:
 
     self.pairs.append(copy.deepcopy(init_ea_pair))
 
-  def train_agent(self, pair):
+  def train_agent(self, pair, epochs):
     """
     Train an ea_list agent for a further number of steps
 
     :param pair: current environment-agent config
+    :param epochs: number of epochs to train the environment for
     :return: pair with updated performance & model
     """
     log_dir, model_dir, save_dir = setup_agent_dir(self.log_dir, pair.env_config.name)
@@ -342,9 +343,11 @@ class EnvPairs:
     self.config['env_config'] = pair.env_config
     self.config['log_dir'] = model_dir
     self.config['save_dir'] = save_dir
+    self.config['num_epochs'] += epochs
     agent = self._create_agent(self.config)
     perf = agent.train_agent()
     del agent
+    tf.keras.backend.clear_session()
     pair._replace(agent_score=perf)
     return pair
 
@@ -1920,6 +1923,7 @@ class POET:
     self.mutation_interval = poet_config['mutation_interval']
     self.transfer_interval = poet_config['transfer_interval']
     self.train_episodes = poet_config['train_episodes']
+    self.log_dir = log_dir
 
     self.mutator = Mutator(
       max_admitted=mutator_config['max_admitted'],
@@ -1930,29 +1934,35 @@ class POET:
       reproducer_config=reproducer_config
     )
 
+
   def run(self):
     """
     Run main POET loop, entry point for main POET algorithm after construction
 
     :return: None
     """
+    poet_log_file = os.path.join(self.log_dir, 'poet_vals.pkl')
+    if os.path.isfile(poet_log_file):
+      with open(poet_log_file, 'rb') as f:
+        self.ea_pairs, self.max_poet_iters = pkl.load(f)
+
     for poet_step in range(self.max_poet_iters):
       if poet_step % self.mutation_interval == 0:
         self.ea_pairs.pairs, self.ea_pairs.archived_pairs = self.mutator.mutate_env(self.ea_pairs)
       print(f'mutated {poet_step} times')
       # Train each ea_pair in list
       for idx, pair in enumerate(self.ea_pairs.pairs):
-        if idx > 0:
-          pair = self.ea_pairs.train_agent(pair)
+          pair = self.ea_pairs.train_agent(pair, self.train_episodes)
           self.ea_pairs.pairs[idx] = pair
       # Attempt mutation if able
       for idx, pair in enumerate(self.ea_pairs.pairs):
-        if idx > 0 and poet_step % self.mutation_interval == 0:
-          eval_pairs = self.ea_pairs.pairs
-          eval_pairs.remove(pair)
+        if poet_step != 0 and poet_step % self.mutation_interval == 0:
           best_agent, best_score = self.ea_pairs.evaluate_transfer(pair.env_config)
           pair = pair._replace(agent_config=best_agent, agent_score=best_score)
           self.ea_pairs.pairs[idx] = pair
+      # save checkpoint of POET state
+      with open(poet_log_file, 'wb') as f:
+        pkl.dump([self.ea_pairs, self.max_poet_iters - poet_step], f)
 
 
 def main(_):
