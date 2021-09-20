@@ -345,7 +345,7 @@ class EnvPairs:
     agent = self._create_agent(self.config)
     perf = agent.train_agent()
     del agent
-    pair.agent_score = perf
+    pair._replace(agent_score=perf)
     return pair
 
   def train_on_new_env(self, env_config):
@@ -416,10 +416,12 @@ class EnvPairs:
       score = self.evaluate_agent_on_env(agent.agent_config['log_dir'], agent.agent_config['save_model'],
                                          candidate_env_config)
       raw_scores.append(_cap_score(score[0], lower_bound, upper_bound))
+      del agent
     for agent in self.archived_pairs:
       score = self.evaluate_agent_on_env(agent.agent_config['log_dir'], agent.agent_config['save_model'],
                                          candidate_env_config)
       raw_scores.append(_cap_score(score[0], lower_bound, upper_bound))
+      del agent
     if len(raw_scores) > 1:
       pata_ec = compute_centered_ranks(np.array(raw_scores))
     else:
@@ -443,6 +445,7 @@ class EnvPairs:
       if best_score is None or best_score[0] < score[0]:
         best_agent = copy.deepcopy(agent.agent_config)
         best_score = score
+      del agent
 
     return best_agent, best_score
 
@@ -1934,7 +1937,7 @@ class POET:
     :return: None
     """
     for poet_step in range(self.max_poet_iters):
-      if poet_step % self.mutation_interval:
+      if poet_step % self.mutation_interval == 0:
         self.ea_pairs.pairs, self.ea_pairs.archived_pairs = self.mutator.mutate_env(self.ea_pairs)
       print(f'mutated {poet_step} times')
       # Train each ea_pair in list
@@ -1944,13 +1947,12 @@ class POET:
           self.ea_pairs.pairs[idx] = pair
       # Attempt mutation if able
       for idx, pair in enumerate(self.ea_pairs.pairs):
-        if idx > 0 and poet_step % self.mutation_interval:
+        if idx > 0 and poet_step % self.mutation_interval == 0:
           eval_pairs = self.ea_pairs.pairs
           eval_pairs.remove(pair)
           best_agent, best_score = self.ea_pairs.evaluate_transfer(pair.env_config)
           pair = pair._replace(agent_config=best_agent, agent_score=best_score)
           self.ea_pairs.pairs[idx] = pair
-
 
 
 def main(_):

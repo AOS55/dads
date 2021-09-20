@@ -74,8 +74,8 @@ class Mutator:
 
     if len(ea_pairs.pairs) > self.max_capacity:
       num_removals = len(ea_pairs.pairs) - self.max_capacity
-      ea_pairs, archived_pairs = self._remove_oldest(ea_pairs.pairs, ea_pairs.archived_pairs, num_removals)
-    return ea_pairs, archived_pairs
+      ea_pair_list, archived_pairs = self._remove_oldest(ea_pairs.pairs, ea_pairs.archived_pairs, num_removals)
+    return ea_pair_list, archived_pairs
 
   def _eligible_to_reproduce(self, pair):
     if pair.agent_score[0] >= self.min_performance:
@@ -102,4 +102,4 @@ class Mutator:
         archived_pairs.append(pair)
       else:
         break
-    return ea_pairs, archived_pairs
+    return ea_pairs.pairs, archived_pairs
