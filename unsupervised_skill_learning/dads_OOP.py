@@ -1934,7 +1934,6 @@ class POET:
       reproducer_config=reproducer_config
     )
 
-
   def run(self):
     """
     Run main POET loop, entry point for main POET algorithm after construction
@@ -2069,7 +2068,7 @@ def main(_):
   }
 
   reproducer_config = {
-    'env_categories': ['pit'],
+    'env_categories': ['pit', 'stump', 'stair'],
     'master_seed': 4,
     'max_children': 3
   }

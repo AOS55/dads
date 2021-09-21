@@ -103,10 +103,10 @@ class Reproducer:
         stump_width = self.populate_array(stump_width, [1, 2], enforce=enforce)
 
       if enforce or sub_category == '_h':
-        stump_height = self.populate_array(stump_height, [0, 0.4],
+        stump_height = self.populate_array(stump_height, [0.1, 0.4],
                                            increment=0.2, enforce=enforce, max_value=[5.0, 5.0])
 
-      stump_float = self.populate_array(stump_float, [0, 1], enforce=True)
+      stump_float = self.populate_array(stump_float, [0.1, 1], enforce=True)
 
     if 'stair' in self.categories:
       sub_category = '_h'  # self.rs.choice(['_s', '_h'])
@@ -118,7 +118,7 @@ class Reproducer:
         stair_steps = [int(i) for i in stair_steps]
 
       if enforce or sub_category == '_h':
-        stair_height = self.populate_array(stair_height, [0, 0.4],
+        stair_height = self.populate_array(stair_height, [0.1, 0.4],
                                            increment=0.2, enforce=enforce, max_value=[5.0, 5.0])
 
       stair_width = self.populate_array(stump_width, [4, 5], enforce=True)

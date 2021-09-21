@@ -312,9 +312,13 @@ class BipedalWalkerCustom(gym.Env):
                     (x,                      y + countery *
                      TERRAIN_STEP + stump_float * TERRAIN_STEP),
                 ]
-                self.fd_polygon.shape.vertices = poly
-                t = self.world.CreateStaticBody(
-                    fixtures=self.fd_polygon)
+                # print(poly)
+                try:
+                    self.fd_polygon.shape.vertices = poly
+                    t = self.world.CreateStaticBody(
+                        fixtures=self.fd_polygon)
+                except:
+                    print(f'area error {poly}')
                 t.color1, t.color2 = (1, 1, 1), (0.6, 0.6, 0.6)
                 self.terrain.append(t)
 
