@@ -65,7 +65,7 @@
 ### SHARED HYPERPARAMETERS ---------------------
 --environment=bipedal_walker_custom
 --max_env_steps=200
---reduced_observation=0\
+--reduced_observation=0
 
 # define the type of skills being learnt
 --num_skills=2
