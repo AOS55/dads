@@ -90,16 +90,16 @@ class Mutator:
       return True
 
   @staticmethod
-  def _remove_oldest(ea_pairs, archived_pairs, num_removals):
+  def _remove_oldest(pairs, archived_pairs, num_removals):
     """
     Remove oldest pairs to limit size of active env buffers
     :param num_removals: the number of elements to remove from the end of the list
     :return: None
     """
-    for pair in reversed(ea_pairs):
+    for pair in reversed(pairs):
       if num_removals > 0:
-        ea_pairs.remove(pair)
+        pairs.remove(pair)
         archived_pairs.append(pair)
       else:
         break
-    return ea_pairs.pairs, archived_pairs
+    return pairs, archived_pairs
