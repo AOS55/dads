@@ -152,7 +152,6 @@ class Reproducer:
     child_list = []
     while len(child_list) < self.max_children:
       for parent in parent_list:
-        print(parent.env_config)
         child_env_config = self.reproduce(parent.env_config)
         child = ea_pairs.update_ea_pair(parent, parent.env_name, child_env_config)
         # Ensure we don't add the same env_config twice
