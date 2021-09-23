@@ -100,6 +100,7 @@ class Mutator:
       if num_removals > 0:
         pairs.remove(pair)
         archived_pairs.append(pair)
+        num_removals -= 1
       else:
         break
     return pairs, archived_pairs
