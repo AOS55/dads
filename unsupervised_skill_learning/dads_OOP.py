@@ -2068,7 +2068,7 @@ def main(_):
   }
 
   reproducer_config = {
-    'env_categories': ['pit', 'stump', 'stair'],
+    'env_categories': ['roughness', 'pit', 'stump', 'stair'],
     'master_seed': 4,
     'max_children': 3
   }
