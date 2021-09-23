@@ -17,7 +17,7 @@
 
 # metadata flags
 --save_model=dads
---save_freq=2
+--save_freq=20
 --record_freq=100
 --vid_name=skill
 
