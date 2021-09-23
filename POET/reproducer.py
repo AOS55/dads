@@ -156,7 +156,7 @@ class Reproducer:
         child_env_config = self.reproduce(parent.env_config)
         child = ea_pairs.update_ea_pair(parent, parent.env_name, child_env_config)
         # Ensure we don't add the same env_config twice
-        if len(list(filter(lambda x: (x.name == child.name), parent_list))) == 0 and\
-            len(list(filter(lambda x: (x.name == child.name), child_list))) == 0:
+        if len(list(filter(lambda x: (x.env_name == child.env_name), parent_list))) == 0 and\
+            len(list(filter(lambda x: (x.env_name == child.env_name), child_list))) == 0:
           child_list.append(child)
     return child_list
