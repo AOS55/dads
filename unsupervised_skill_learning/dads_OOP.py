@@ -1916,14 +1916,19 @@ class POET:
     :param reproducer_config: Reproducer configuration dictionary
     """
 
-    self.ea_pairs = EnvPairs(init_agent_config, log_dir)
+    self.log_dir = log_dir
+    poet_log_file = os.path.join(self.log_dir, 'poet_vals.pkl')
+    if os.path.isfile(poet_log_file):
+      with open(poet_log_file, 'rb') as f:
+        self.ea_pairs, self.max_poet_iters = pkl.load(f)
+    else:
+      self.ea_pairs = EnvPairs(init_agent_config, log_dir)
 
     # Setup POET hyper-parameters
     self.max_poet_iters = poet_config['max_poet_iters']
     self.mutation_interval = poet_config['mutation_interval']
     self.transfer_interval = poet_config['transfer_interval']
     self.train_episodes = poet_config['train_episodes']
-    self.log_dir = log_dir
 
     self.mutator = Mutator(
       max_admitted=mutator_config['max_admitted'],
