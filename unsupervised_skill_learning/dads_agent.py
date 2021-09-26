@@ -28,7 +28,7 @@ import tensorflow as tf
 
 from tf_agents.agents.sac import sac_agent
 
-import skill_dynamics
+from unsupervised_skill_learning import skill_dynamics
 
 nest = tf.nest
 
@@ -238,6 +238,7 @@ class DADSAgent(sac_agent.SacAgent):
       return new_reward, info
     else:
       return None, None
+
 
   @property
   def skill_dynamics(self):

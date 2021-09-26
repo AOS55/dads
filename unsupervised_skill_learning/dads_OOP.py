@@ -9,6 +9,7 @@ import io
 from absl import logging, flags
 import functools
 
+import copy
 import sys
 sys.path.append(os.path.abspath('./'))
 
@@ -36,7 +37,7 @@ from tf_agents.specs import tensor_spec
 from tf_agents.utils import common
 from tf_agents.utils import nest_utils
 
-import dads_agent
+from unsupervised_skill_learning import dads_agent
 
 from envs import skill_wrapper
 from envs import video_wrapper
@@ -52,6 +53,10 @@ from envs import hand_block
 from envs import bipedal_walker
 from envs import bipedal_walker_custom
 from envs.bipedal_walker_custom import Env_config
+
+from POET.mutator import Mutator
+from POET.utils import EAPair
+from POET.stats import compute_centered_ranks
 
 import pyvirtualdisplay
 
@@ -238,15 +243,14 @@ def get_environment(env_name='point_mass', env_config=None):
   elif env_name == 'point_mass':
     env = point_mass.PointMassEnv(expose_goal=False, expose_velocity=False)
   elif env_name == 'bipedal_walker':
-    pyvirtualdisplay.Display(visible=0, size=(1400, 900)).start()
+    # pyvirtualdisplay.Display(visible=0, size=(1400, 900)).start()
     env = bipedal_walker.BipedalWalker()
   elif env_name == 'bipedal_walker_custom':
-    pyvirtualdisplay.Display(visible=0, size=(1400, 900)).start()
     if env_config is None:
       env_config = Env_config(
         name='default_env',
         ground_roughness=0,
-        pit_gap=[2],
+        pit_gap=[],
         stump_width=[],
         stump_height=[],
         stump_float=[],
@@ -303,7 +307,8 @@ class EnvPairs:
   def __init__(self, init_config, log_dir):
     self.config = init_config
     self.log_dir = log_dir
-    self.pairs = []
+    self.pairs = []  # list of active pairs being tracked of type EAPair
+    self.archived_pairs = []  # list of pairs that have been archived of type EAPair
     self.initialize_agent()
 
   def initialize_agent(self):
@@ -312,17 +317,45 @@ class EnvPairs:
 
     :return: None
     """
-    init_agent = create_agent(self.config)
+    init_agent = self._create_agent(self.config)
     perf = init_agent.train_agent()
     del init_agent
     tf.keras.backend.clear_session()
-    self.pairs.append({'config': self.config, 'performance': perf, 'log_dir': self.log_dir})
+    init_ea_pair = EAPair(env_name=self.config['env_name'],
+                          env_config=self.config['env_config'],
+                          agent_config=self.config,
+                          agent_score=perf,
+                          parent=None,
+                          pata_ec=np.array([0.0]))
+
+    self.pairs.append(copy.deepcopy(init_ea_pair))
+
+  def train_agent(self, pair, epochs):
+    """
+    Train an ea_list agent for a further number of steps
+
+    :param pair: current environment-agent config
+    :param epochs: number of epochs to train the environment for
+    :return: pair with updated performance & model
+    """
+    log_dir, model_dir, save_dir = setup_agent_dir(self.log_dir, pair.env_config.name)
+    self.config['name'] = pair.env_config.name
+    self.config['env_config'] = pair.env_config
+    self.config['log_dir'] = model_dir
+    self.config['save_dir'] = save_dir
+    self.config['num_epochs'] += epochs
+    agent = self._create_agent(self.config)
+    perf = agent.train_agent()
+    del agent
+    tf.keras.backend.clear_session()
+    pair._replace(agent_score=perf)
+    return pair
 
   def train_on_new_env(self, env_config):
     """
     Train a new agent on an existing env config
     :param env_config:
-    :return:
+    :return: None
     """
     log_dir, model_dir, save_dir = setup_agent_dir(self.log_dir, env_config.name)
     self.config['name'] = env_config.name
@@ -333,7 +366,107 @@ class EnvPairs:
     perf = agent.train_agent()
     del agent
     tf.keras.backend.clear_session()
-    self.pairs.append({'config': env_config, 'performance': perf, 'log_dir': log_dir})
+    ea_pair = EAPair(env_name=self.config['env_name'],
+                     env_config=self.config['env_config'],
+                     agent_config=self.config,
+                     agent_score=perf,
+                     parent=None,
+                     pata_ec=None)
+    self.pairs.append(copy.deepcopy(ea_pair))
+
+  def evaluate_agent_on_env(self, log_dir, save_dir, env_config):
+    """
+    Given a previously trained agent evaluate the performance of a different agent on this env
+
+    :param log_dir: directory of agent log_dir to train agent on
+    :param save_dir: directory of agent model_dir to train agent on
+    :param env_config:
+    :return:
+    """
+    # self.config['name'] = env_config.name
+    self.config['env_config'] = env_config
+    self.config['log_dir'] = log_dir  # use the agent model dir to train on
+    self.config['save_dir'] = save_dir
+    self.config['num_epochs'] = 5  # eval over 5 epochs of training (sample by training on env)
+    self.config['record_freq'] = 10  # set record_freq to be higher than num_epochs to evaluate on
+    self.config['save_freq'] = 10  # set save_freq to be higher than num_epochs to evaluate on
+    self.config['restore_training'] = False
+    # TODO: Check this is not overwriting the saved model, should just deploy the model for evaluation
+    agent = self._create_agent(self.config)
+    perf = agent.train_agent()
+    del agent
+    tf.keras.backend.clear_session()
+    return perf
+
+  def update_pata_ec(self, candidate_env_config, lower_bound, upper_bound):
+    """
+    Based on the current group of agents calculate the PATA-EC (Performance of All Trained Agents)
+
+    :param candidate_env_config: configuration for candidate environments
+    :param lower_bound: lower bound for agent
+    :param upper_bound: upper bound for agent
+    :return: pata_ec score
+    """
+    def _cap_score(score, lower, upper):
+      if score < lower:
+        score = lower
+      elif score > upper:
+        score = upper
+      return score
+
+    raw_scores = []
+    for agent in self.pairs:
+      score = self.evaluate_agent_on_env(agent.agent_config['log_dir'], agent.agent_config['save_model'],
+                                         candidate_env_config)
+      raw_scores.append(_cap_score(score[0], lower_bound, upper_bound))
+      del agent
+    for agent in self.archived_pairs:
+      score = self.evaluate_agent_on_env(agent.agent_config['log_dir'], agent.agent_config['save_model'],
+                                         candidate_env_config)
+      raw_scores.append(_cap_score(score[0], lower_bound, upper_bound))
+      del agent
+    if len(raw_scores) > 1:
+      pata_ec = compute_centered_ranks(np.array(raw_scores))
+    else:
+      pata_ec = np.array([0.0])
+    return pata_ec
+
+  def evaluate_transfer(self, candidate_env_config):
+    """
+    Given an env_config find which active agent is best suited for the env
+
+    :param candidate_env_config: env_config of the candidate env
+    :return: best_agent to use with candidate_env
+    """
+
+    best_score = None
+    best_agent = None
+
+    for agent in self.pairs:
+      score = self.evaluate_agent_on_env(agent.agent_config['log_dir'],
+                                         agent.agent_config['save_dir'], candidate_env_config)
+      if best_score is None or best_score[0] < score[0]:
+        best_agent = copy.deepcopy(agent.agent_config)
+        best_score = score
+      del agent
+
+    return best_agent, best_score
+
+  def update_ea_pair(self, pair, parent_name, env_config):
+    log_dir, model_dir, save_dir = setup_agent_dir(self.log_dir, env_config.name)
+    new_pair = EAPair(env_name=env_config.name,
+                      env_config=env_config,
+                      agent_config=copy.deepcopy(pair.agent_config),  # need to deepcopy to prevent mutating parent
+                      agent_score=None,
+                      parent=parent_name,
+                      pata_ec=np.array([0.0]))
+    new_agent_config = new_pair.agent_config
+    new_agent_config['log_dir'] = model_dir
+    new_agent_config['save_dir'] = save_dir
+    new_agent_config['env_name'] = env_config.name
+    new_agent_config['env_config'] = env_config
+    new_pair = new_pair._replace(agent_config=new_agent_config)
+    return new_pair
 
   @staticmethod
   def _get_agent_config(current_dads) -> dict:
@@ -1194,7 +1327,9 @@ class DADS:
           action_step = action_step._replace(
             info=policy_step.set_log_probability(action_step.info, cur_action_log_prob)
           )
-
+      if np.isnan(action_step.action).any():
+        print(f'action_step.action has a NaN problem: {action_step.action}')
+      # print(f'action_step.action: {action_step.action}')
       next_time_step = self.py_env.step(action_step.action)
       cur_return += next_time_step.reward
 
@@ -1483,7 +1618,7 @@ class DADS:
     :param predict_trajectory_steps: number of steps to predict the trajectory for
     :param return_data: boolean, to return data
     :param close_environment: boolean, set true to close environment at end
-    :return:
+    :return: data or extrinsic reward
     """
     time_step = env.reset()
     data = []
@@ -1577,8 +1712,46 @@ class DADS:
     """
     Evaluate the dads agent using the appropriate policy
 
-    :return:
+    :return: performance of the agent on a given environment
     """
+    # TODO: Add method to allow single eval -> Harder than it looks
+
+    # time_step = self.py_env.reset()
+    # iter_count = 0
+    # sample_count = 0
+    # self.episode_size_buffer.append(0)
+    # self.episode_return_buffer.append(0.)
+    #
+    # def _process_episode_data(ep_buffer, cur_data):
+    #   """
+    #   Process episode dat and only keep the last 100 data points of the buffer
+    #
+    #   :param ep_buffer: current episode buffer
+    #   :param cur_data: new data collected
+    #   :return: buffer updated with new data
+    #   """
+    #   ep_buffer[-1] += cur_data[0]
+    #   ep_buffer += cur_data[1:]
+    #
+    #   # Only keep the last 100 episodes
+    #   if len(ep_buffer) > 101:
+    #     ep_buffer = ep_buffer[-101:]
+    #   return ep_buffer
+    #
+    # def _filter_trajectories(trajectory):
+    #   """
+    #   Remove invalid transactions in the buffer that might not have been consecutive in the episode
+    #
+    #   :param trajectory: trajectory to filter out
+    #   :return: nested map structure
+    #   """
+    #   valid_indices = (trajectory.step_type[:, 0] != 2)
+    #   return nest.map_structure(lambda x: x[valid_indices], trajectory)
+    #
+    # input_obs = trajectories.observation[:, 0, :-self._latent_size]
+    # cur_skill = trajectories.observation[:, 0, :-self._latent_size:]
+    # target_obs = trajectories.observation[:, 1, :-self._latent_size]
+
     return
 
   @staticmethod
@@ -1725,7 +1898,90 @@ class DADS:
     return time_step
 
 
+class POET:
+  """Paired Open-Ended Trailblazer"""
+  def __init__(self,
+               init_agent_config,
+               log_dir,
+               poet_config,
+               mutator_config,
+               reproducer_config):
+    """
+    POET constructor
+
+    :param init_agent_config: initial configuration file for the agent
+    :param log_dir: log_directory to use for POET responses (forms part of the algorithm training itself)
+    :param poet_config: poet configuration hyper-parameters
+    :param mutator_config: Mutator configuration dictionary
+    :param reproducer_config: Reproducer configuration dictionary
+    """
+
+    self.log_dir = log_dir
+    poet_log_file = os.path.join(self.log_dir, 'poet_vals.pkl')
+    if os.path.isfile(poet_log_file):
+      with open(poet_log_file, 'rb') as f:
+        self.ea_pairs, self.max_poet_iters = pkl.load(f)
+    else:
+      self.ea_pairs = EnvPairs(init_agent_config, log_dir)
+
+    # Setup POET hyper-parameters
+    self.max_poet_iters = poet_config['max_poet_iters']
+    self.mutation_interval = poet_config['mutation_interval']
+    self.transfer_interval = poet_config['transfer_interval']
+    self.train_episodes = poet_config['train_episodes']
+
+    self.mutator = Mutator(
+      max_admitted=mutator_config['max_admitted'],
+      capacity=mutator_config['capacity'],
+      min_performance=mutator_config['min_performance'],
+      mc_low=mutator_config['mc_low'],
+      mc_high=mutator_config['mc_high'],
+      reproducer_config=reproducer_config
+    )
+
+  def run(self):
+    """
+    Run main POET loop, entry point for main POET algorithm after construction
+
+    :return: None
+    """
+    poet_log_file = os.path.join(self.log_dir, 'poet_vals.pkl')
+    if os.path.isfile(poet_log_file):
+      with open(poet_log_file, 'rb') as f:
+        self.ea_pairs, self.max_poet_iters = pkl.load(f)
+
+    for poet_step in range(self.max_poet_iters):
+      if poet_step % self.mutation_interval == 0:
+        self.ea_pairs.pairs, self.ea_pairs.archived_pairs = self.mutator.mutate_env(self.ea_pairs)
+      print(f'mutated {poet_step} times')
+      # Train each ea_pair in list
+      for idx, pair in enumerate(self.ea_pairs.pairs):
+          pair = self.ea_pairs.train_agent(pair, self.train_episodes)
+          self.ea_pairs.pairs[idx] = pair
+      # Attempt mutation if able
+      for idx, pair in enumerate(self.ea_pairs.pairs):
+        if poet_step != 0 and poet_step % self.mutation_interval == 0:
+          best_agent, best_score = self.ea_pairs.evaluate_transfer(pair.env_config)
+          pair = pair._replace(agent_config=best_agent, agent_score=best_score)
+          self.ea_pairs.pairs[idx] = pair
+      # save checkpoint of POET state
+      with open(poet_log_file, 'wb') as f:
+        pkl.dump([self.ea_pairs, self.max_poet_iters - poet_step], f)
+
+
 def main(_):
+
+  stub_env_config = Env_config(
+        name='stub_env',
+        ground_roughness=0,
+        pit_gap=[],
+        stump_width=[],
+        stump_height=[],
+        stump_float=[],
+        stair_height=[],
+        stair_width=[],
+        stair_steps=[]
+      )
 
   # Setup tf values
   tf.compat.v1.enable_resource_variables()
@@ -1738,10 +1994,22 @@ def main(_):
   root_dir, log_dir, save_dir = setup_top_dirs(FLAGS.logdir, FLAGS.environment)
   log_dir, model_dir, save_dir = setup_agent_dir(log_dir, 'default_env')
 
+  init_env_config = Env_config(
+    name='default_env',
+    ground_roughness=0,
+    pit_gap=[],
+    stump_width=[],
+    stump_height=[],
+    stump_float=[],
+    stair_height=[],
+    stair_width=[],
+    stair_steps=[]
+  )
+
   # Setup initial dads configuration, must be done in main due to use of flags
   init_dads_config = {
     'env_name': FLAGS.environment,
-    'env_config': None,
+    'env_config': init_env_config,
     'log_dir': model_dir,
     'num_skills': FLAGS.num_skills,
     'skill_type': FLAGS.skill_type,
@@ -1789,22 +2057,43 @@ def main(_):
     'restore_training': True
   }
 
-  stub_env_config = Env_config(
-        name='stub_env',
-        ground_roughness=0,
-        pit_gap=[],
-        stump_width=[5],
-        stump_height=[2],
-        stump_float=[],
-        stair_height=[],
-        stair_width=[],
-        stair_steps=[]
-      )
+  poet_config = {
+    'max_poet_iters': 20,
+    'mutation_interval': 4,
+    'transfer_interval': 8,
+    'train_episodes': 10
+  }
 
-  ea_pairs = EnvPairs(init_dads_config, log_dir)
-  ea_pairs.train_on_new_env(stub_env_config)
-  print(ea_pairs.pairs)
+  mutator_config = {
+    'max_admitted': 6,
+    'capacity': 15,
+    'min_performance': -4000,
+    'mc_low': -4000,
+    'mc_high': 4000,
+  }
+
+  reproducer_config = {
+    'env_categories': ['roughness', 'pit', 'stump', 'stair'],
+    'master_seed': 4,
+    'max_children': 3
+  }
+
+  poet = POET(init_dads_config,
+              log_dir,
+              poet_config=poet_config,
+              mutator_config=mutator_config,
+              reproducer_config=reproducer_config)
+  poet.run()
+  print('Finished running POET!')
+
+  # ea_pairs = EnvPairs(init_dads_config, log_dir)
+  # ea_pairs.train_on_new_env(stub_env_config)
+  # import pprint
+  # pp = pprint.PrettyPrinter(indent=4)
+  # pp.pprint(ea_pairs.pairs)
+  # # TODO: manage access to agent_dir and env_config
 
 
 if __name__ == '__main__':
+  pyvirtualdisplay.Display(visible=0, size=(1400, 900)).start()
   tf.compat.v1.app.run(main)

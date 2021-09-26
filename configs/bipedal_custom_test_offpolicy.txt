@@ -17,7 +17,7 @@
 
 # metadata flags
 --save_model=dads
---save_freq=2
+--save_freq=20
 --record_freq=100
 --vid_name=skill
 
@@ -26,9 +26,9 @@
 
 # (set clear_buffer_iter=1 for on-policy)
 --clear_buffer_every_iter=0
---initial_collect_steps=2000
---collect_steps=1000
---num_epochs=100
+--initial_collect_steps=200
+--collect_steps=100
+--num_epochs=10
 
 # skill dynamics optimization hyperparameters
 --skill_dyn_train_steps=8
