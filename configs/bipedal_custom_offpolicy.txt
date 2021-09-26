@@ -64,16 +64,16 @@
 
 ### SHARED HYPERPARAMETERS ---------------------
 --environment=bipedal_walker_custom
---max_env_steps=200
+--max_env_steps=2000
 --reduced_observation=0
 
 # define the type of skills being learnt
---num_skills=2
+--num_skills=8
 --skill_type=cont_uniform
 --random_skills=100
 
 # number of skill-video evaluations
---num_evals=3
+--num_evals=6
 
 # (optional) policy, critic and skill dynamics
 --hidden_layer_size=512
