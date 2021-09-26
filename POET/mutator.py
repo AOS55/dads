@@ -49,17 +49,17 @@ class Mutator:
                           if pair.env_name == child.parent]
       score = ea_pairs.evaluate_agent_on_env(parent_agent_dir[0][0], parent_agent_dir[0][1], child.env_config)
       child = child._replace(agent_score=score)
-      if len(ea_pairs.pairs) > 1:
-        if not self._mc_satisfied(child.agent_score[0]):
-          child_list.remove(child)
-        else:
-          novelty_score = compute_novelty_vs_archive(ea_pairs=ea_pairs,
-                                                     candidate_env=child.env_config,
-                                                     k=5,
-                                                     low=self.min_performance,
-                                                     high=-self.min_performance)
-          child_novelty_list.append((child, novelty_score))
-        child_list = [x[0] for x in child_novelty_list]
+      # if len(ea_pairs.pairs) >= self.max_capacity - self.reproducer.max_children:
+      if not self._mc_satisfied(child.agent_score[0]):
+        child_list.remove(child)
+      else:
+        novelty_score = compute_novelty_vs_archive(ea_pairs=ea_pairs,
+                                                   candidate_env=child.env_config,
+                                                   k=5,
+                                                   low=self.min_performance,
+                                                   high=-self.min_performance)
+        child_novelty_list.append((child, novelty_score))
+      child_list = [x[0] for x in child_novelty_list]
 
     # Evaluate which policy to use on the new environment and ensure it satisfies the mc_criteria
     admitted = 0
