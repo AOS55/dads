@@ -326,7 +326,7 @@ class EnvPairs:
                           agent_config=self.config,
                           agent_score=perf,
                           parent=None,
-                          pata_ec=0.5)
+                          pata_ec=np.array([0.0]))
 
     self.pairs.append(copy.deepcopy(init_ea_pair))
 
@@ -428,7 +428,7 @@ class EnvPairs:
     if len(raw_scores) > 1:
       pata_ec = compute_centered_ranks(np.array(raw_scores))
     else:
-      pata_ec = [0.5]
+      pata_ec = np.array([0.0])
     return pata_ec
 
   def evaluate_transfer(self, candidate_env_config):
@@ -459,7 +459,7 @@ class EnvPairs:
                       agent_config=copy.deepcopy(pair.agent_config),  # need to deepcopy to prevent mutating parent
                       agent_score=None,
                       parent=parent_name,
-                      pata_ec=0.5)
+                      pata_ec=np.array([0.0]))
     new_agent_config = new_pair.agent_config
     new_agent_config['log_dir'] = model_dir
     new_agent_config['save_dir'] = save_dir
