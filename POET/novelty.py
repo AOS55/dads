@@ -22,18 +22,14 @@ def euclidian_distance(x, y):
 
 # TODO: Understand how this method works, look at diagram in report and track data
 def compute_novelty_vs_archive(ea_pairs, candidate_env, k, low, high):
-  # distances = []
+  distances = []
   pata_ec = ea_pairs.update_pata_ec(candidate_env, low, high)
-  distances = pata_ec  # TODO: this is a bit of a bodge, not sure if it makes sense?
-  # if len(ea_pairs.pairs) <= 1:
-  #   return 1
-  # else:
-  #   for agent in ea_pairs.pairs:
-  #     print(agent.pata_ec)
-  #     distances.append(euclidian_distance(agent.pata_ec, pata_ec))
-  #
-  #   for agent in ea_pairs.archived_pairs:
-  #     distances.append(euclidian_distance(agent.pata_ec, pata_ec))
+  for agent in ea_pairs.pairs:
+    print(agent.pata_ec)
+    distances.append(euclidian_distance(agent.pata_ec, pata_ec))
+
+  for agent in ea_pairs.archived_pairs:
+    distances.append(euclidian_distance(agent.pata_ec, pata_ec))
 
   distances = np.array(distances)
   top_k_indices = distances.argsort()[:k]
