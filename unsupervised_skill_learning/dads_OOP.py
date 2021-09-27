@@ -14,7 +14,7 @@ import sys
 sys.path.append(os.path.abspath('./'))
 
 import matplotlib
-matplotlib.use('Agg')
+# matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
 import tensorflow as tf
@@ -38,6 +38,7 @@ from tf_agents.utils import common
 from tf_agents.utils import nest_utils
 
 from unsupervised_skill_learning import dads_agent
+from unsupervised_skill_learning import eval_analysis
 
 from envs import skill_wrapper
 from envs import video_wrapper
@@ -303,6 +304,65 @@ def setup_agent_dir(log_dir, env_name):
   return log_dir, model_dir, save_dir
 
 
+def get_env_stats(config, eval_dir, log_dir, env_config, env_name='default_env'):
+  dads_config = config
+  env_name = env_name
+  model_dir = os.path.join(log_dir, env_name)
+  save_dir = os.path.join(model_dir, 'models')
+  dads_config['log_dir'] = model_dir
+  dads_config['save_dir'] = save_dir
+  dads_config['env_config'] = env_config
+  agent = DADS(env_name=dads_config['env_name'],
+               env_config=dads_config['env_config'],
+               log_dir=dads_config['log_dir'],
+               num_skills=dads_config['num_skills'],
+               skill_type=dads_config['skill_type'],
+               random_skills=dads_config['random_skills'],
+               min_steps_before_resample=dads_config['min_steps_before_resample'],
+               resample_prob=dads_config['resample_prob'],
+               max_env_steps=dads_config['max_env_steps'],
+               observation_omit_size=dads_config['observation_omit_size'],
+               reduced_observation=dads_config['reduced_observation'],
+               hidden_layer_size=dads_config['hidden_layer_size'],
+               save_dir=dads_config['save_dir'],
+               skill_dynamics_observation_relabel_type=dads_config['skill_dynamics_observation_relabel_type'],
+               skill_dynamics_relabel_type=dads_config['skill_dynamics_relabel_type'],
+               is_clip_eps=dads_config['is_clip_eps'],
+               normalize_data=dads_config['normalize_data'],
+               graph_type=dads_config['graph_type'],
+               num_components=dads_config['num_components'],
+               fix_variance=dads_config['fix_variance'],
+               skill_dynamics_lr=dads_config['skill_dynamics_lr'],
+               agent_lr=dads_config['agent_lr'],
+               agent_gamma=dads_config['agent_gamma'],
+               agent_entropy=dads_config['agent_entropy'],
+               debug=dads_config['debug'],
+               collect_policy_type=dads_config['collect_policy_type'],
+               replay_buffer_capacity=dads_config['replay_buffer_capacity'],
+               train_skill_dynamics_on_policy=dads_config['train_skill_dynamics_on_policy'],
+               initial_collect_steps=dads_config['initial_collect_steps'],
+               collect_steps=dads_config['collect_steps'],
+               action_clipping=dads_config['action_clipping'],
+               num_epochs=dads_config['num_epochs'],
+               save_model=dads_config['save_model'],
+               save_freq=dads_config['save_freq'],
+               clear_buffer_every_iter=dads_config['clear_buffer_every_iter'],
+               skill_dynamics_train_steps=dads_config['skill_dynamics_train_steps'],
+               skill_dynamics_batch_size=dads_config['skill_dynamics_batch_size'],
+               num_samples_for_relabelling=dads_config['num_samples_for_relabelling'],
+               debug_skill_relabelling=dads_config['debug_skill_relabelling'],
+               agent_train_steps=dads_config['agent_train_steps'],
+               agent_relabel_type=dads_config['agent_relabel_type'],
+               agent_batch_size=dads_config['agent_batch_size'],
+               record_freq=dads_config['record_freq'],
+               vid_name=dads_config['vid_name'],
+               deterministic_eval=dads_config['deterministic_eval'],
+               num_evals=dads_config['num_evals'],
+               restore_training=dads_config['restore_training'])
+  stats = agent.eval_agent_stats(eval_dir)
+  return stats
+
+
 class EnvPairs:
   def __init__(self, init_config, log_dir):
     self.config = init_config
@@ -467,6 +527,18 @@ class EnvPairs:
     new_agent_config['env_config'] = env_config
     new_pair = new_pair._replace(agent_config=new_agent_config)
     return new_pair
+
+  def eval_ea_pair(self, pair, eval_dir):
+    log_dir, model_dir, save_dir = setup_agent_dir(self.log_dir, pair.env_config.name)
+    self.config['name'] = pair.env_config.name
+    self.config['env_config'] = pair.env_config
+    self.config['log_dir'] = model_dir
+    self.config['save_dir'] = save_dir
+    agent = self._create_agent(self.config)
+    agent.eval_agent(eval_dir)
+    del agent
+    tf.keras.backend.clear_session()
+    return
 
   @staticmethod
   def _get_agent_config(current_dads) -> dict:
@@ -1614,7 +1686,7 @@ class DADS:
 
     :param env: environment to use
     :param policy: policy to follow in environment
-    :param dynamics: dynamics from skill to follow
+    :param dynamics: skill-dynamics q(s'|s;z)
     :param predict_trajectory_steps: number of steps to predict the trajectory for
     :param return_data: boolean, to return data
     :param close_environment: boolean, set true to close environment at end
@@ -1645,6 +1717,7 @@ class DADS:
         cur_observation = time_step.observation
         next_observation = next_time_step.observation
 
+      # rollout skill-dynamics
       if dynamics is not None:
         if self.reduced_observation:
           cur_observation, next_observation = self.process_observation(
@@ -1708,51 +1781,66 @@ class DADS:
     #   self.global_step)
     # self.sess = self.initialize_session()
 
-  def eval_agent(self):
+  def eval_agent_stats(self, eval_dir):
     """
-    Evaluate the dads agent using the appropriate policy
+    Evaluate the dads agent
 
-    :return: performance of the agent on a given environment
+    :param eval_dir: directory to save evaluation results into
+    :return: None
     """
-    # TODO: Add method to allow single eval -> Harder than it looks
+    eval_policy = self.eval_policy
+    dynamics = self.agent.skill_dynamics
+    metadata = tf.io.gfile.GFile(os.path.join(eval_dir, 'metadata.txt'), 'a')
+    if self.num_skills == 0:
+      num_evals = self.num_evals
+    elif self.deterministic_eval:
+      num_evals = self.num_skills
+    else:
+      num_evals = self.num_evals
 
-    # time_step = self.py_env.reset()
-    # iter_count = 0
-    # sample_count = 0
-    # self.episode_size_buffer.append(0)
-    # self.episode_return_buffer.append(0.)
-    #
-    # def _process_episode_data(ep_buffer, cur_data):
-    #   """
-    #   Process episode dat and only keep the last 100 data points of the buffer
-    #
-    #   :param ep_buffer: current episode buffer
-    #   :param cur_data: new data collected
-    #   :return: buffer updated with new data
-    #   """
-    #   ep_buffer[-1] += cur_data[0]
-    #   ep_buffer += cur_data[1:]
-    #
-    #   # Only keep the last 100 episodes
-    #   if len(ep_buffer) > 101:
-    #     ep_buffer = ep_buffer[-101:]
-    #   return ep_buffer
-    #
-    # def _filter_trajectories(trajectory):
-    #   """
-    #   Remove invalid transactions in the buffer that might not have been consecutive in the episode
-    #
-    #   :param trajectory: trajectory to filter out
-    #   :return: nested map structure
-    #   """
-    #   valid_indices = (trajectory.step_type[:, 0] != 2)
-    #   return nest.map_structure(lambda x: x[valid_indices], trajectory)
-    #
-    # input_obs = trajectories.observation[:, 0, :-self._latent_size]
-    # cur_skill = trajectories.observation[:, 0, :-self._latent_size:]
-    # target_obs = trajectories.observation[:, 1, :-self._latent_size]
+    for idx in range(num_evals):
+      if self.num_skills > 0:
+        if self.deterministic_eval:
+          preset_skill = np.zeros(self.num_skills, dtype=np.int64)
+          preset_skill[idx] = 1
+        elif self.skill_type == 'discrete_uniform':
+          preset_skill = np.random.multinomial(1, [1. / self.num_skills] * self.num_skills)
+        elif self.skill_type == 'gaussian':
+          preset_skill = np.random.multivariate_normal(
+            np.zeros(self.num_skills), np.eye(self.num_skills))
+        elif self.skill_type == 'cont_uniform':
+          preset_skill = np.random.uniform(
+            low=-1.0, high=1.0, size=self.num_skills)
+        elif self.skill_type == 'multivariate_bernoulli':
+          preset_skill = np.random.binomial(1, 0.5, size=self.num_skills)
+      else:
+        preset_skill = None
 
-    return
+      eval_env = get_environment(env_name=self.env_name, env_config=self.env_config)
+      eval_env = wrap_env(
+        skill_wrapper.SkillWrapper(
+          eval_env,
+          num_latent_skills=self.num_skills,
+          skill_type=self.skill_type,
+          preset_skill=preset_skill,
+          min_steps_before_resample=self.min_steps_before_resample,
+          resample_prob=self.resample_prob),
+        max_episode_steps=self.max_env_steps
+        )
+
+      per_skill_evaluations = 1
+      predict_trajectory_steps = 0
+
+      with self.sess.as_default():
+        for eval_idx in range(per_skill_evaluations):
+          eval_trajectory = self.run_on_env(
+            eval_env,
+            eval_policy,
+            dynamics=dynamics,
+            predict_trajectory_steps=predict_trajectory_steps,
+            return_data=True,
+            close_environment=True if eval_idx == per_skill_evaluations - 1 else False)
+    return eval_trajectory
 
   @staticmethod
   def _normal_projection_net(action_spec, init_means_output_factor=0.1):
@@ -2078,13 +2166,34 @@ def main(_):
     'max_children': 3
   }
 
-  poet = POET(init_dads_config,
-              log_dir,
-              poet_config=poet_config,
-              mutator_config=mutator_config,
-              reproducer_config=reproducer_config)
-  poet.run()
-  print('Finished running POET!')
+  run_type = 'eval'
+
+  if run_type == 'train':
+    poet = POET(init_dads_config,
+                log_dir,
+                poet_config=poet_config,
+                mutator_config=mutator_config,
+                reproducer_config=reproducer_config)
+    poet.run()
+    print('Finished running POET!')
+  elif run_type == 'eval':
+    log_dir = log_dir
+    poet_log_file = os.path.join(log_dir, 'poet_vals.pkl')
+    try:
+      with open(poet_log_file, 'rb') as f:
+        ea_pairs, max_poet_iters = pkl.load(f)
+    except:
+      print(f'Poet log file not found @ {poet_log_file}')
+    cwd = os.getcwd()
+    eval_dir = os.path.join(cwd, 'eval_dir')
+    env_stats = get_env_stats(config=init_dads_config, eval_dir=eval_dir, log_dir=log_dir,
+                  env_config=init_env_config, env_name='default_env')
+    observations = [env_stats[step_idx][0] for step_idx in range(len(env_stats))]
+    actions = [env_stats[step_idx][1] for step_idx in range(len(env_stats))]
+    logp = [env_stats[step_idx][2] for step_idx in range(len(env_stats))]
+    tot_return = [env_stats[step_idx][3] for step_idx in range(len(env_stats))]
+    cur_predicted_trajectory = [env_stats[step_idx][4] for step_idx in range(len(env_stats))]
+    print(observations)
 
   # ea_pairs = EnvPairs(init_dads_config, log_dir)
   # ea_pairs.train_on_new_env(stub_env_config)
