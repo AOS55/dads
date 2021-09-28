@@ -44,6 +44,7 @@ class Mutator:
     # TODO: Include a check for environment already existing
     child_list = self.reproducer.mutate_list(parent_list, ea_pairs)
     child_novelty_list = []
+    children_to_remove = []
     for child in child_list:
       parent_agent_dir = [(pair.agent_config['log_dir'], pair.agent_config['save_dir']) for pair in parent_list
                           if pair.env_name == child.parent]
@@ -51,7 +52,9 @@ class Mutator:
       child = child._replace(agent_score=score)
       # if len(ea_pairs.pairs) >= self.max_capacity - self.reproducer.max_children:
       if not self._mc_satisfied(child.agent_score[0]):
-        child_list.remove(child)
+        # children_to_remove.append(child)
+        print(f'Child Score to remove is: {child.agent_score[0]}')
+        continue
       else:
         novelty_score = compute_novelty_vs_archive(ea_pairs=ea_pairs,
                                                    candidate_env=child.env_config,
@@ -59,7 +62,10 @@ class Mutator:
                                                    low=self.min_performance,
                                                    high=-self.min_performance)
         child_novelty_list.append((child, novelty_score))
-      child_list = [x[0] for x in child_novelty_list]
+    # Might not be required as the child is removed if the value is in removal
+    # for child_removal in children_to_remove:
+    #   child_list.remove(child_removal)
+    child_list = [x[0] for x in child_novelty_list]
 
     # Evaluate which policy to use on the new environment and ensure it satisfies the mc_criteria
     admitted = 0

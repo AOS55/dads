@@ -38,7 +38,8 @@ from tf_agents.utils import common
 from tf_agents.utils import nest_utils
 
 from unsupervised_skill_learning import dads_agent
-from unsupervised_skill_learning import eval_analysis
+from unsupervised_skill_learning.eval_analysis import trajectory_diff, calculate_trajectory_error_stats,\
+  plot_trajectory_planner_error
 
 from envs import skill_wrapper
 from envs import video_wrapper
@@ -535,7 +536,7 @@ class EnvPairs:
     self.config['log_dir'] = model_dir
     self.config['save_dir'] = save_dir
     agent = self._create_agent(self.config)
-    agent.eval_agent(eval_dir)
+    agent.eval_agent_stats(eval_dir)
     del agent
     tf.keras.backend.clear_session()
     return
@@ -1829,7 +1830,7 @@ class DADS:
         )
 
       per_skill_evaluations = 1
-      predict_trajectory_steps = 0
+      predict_trajectory_steps = 30
 
       with self.sess.as_default():
         for eval_idx in range(per_skill_evaluations):
@@ -2104,7 +2105,7 @@ def main(_):
     'random_skills': FLAGS.random_skills,
     'min_steps_before_resample': FLAGS.min_steps_before_resample,
     'resample_prob': FLAGS.resample_prob,
-    'max_env_steps': FLAGS.random_skills,
+    'max_env_steps': FLAGS.max_env_steps,
     'observation_omit_size': 0,
     'reduced_observation': FLAGS.reduced_observation,
     'hidden_layer_size': FLAGS.hidden_layer_size,
@@ -2149,15 +2150,15 @@ def main(_):
     'max_poet_iters': 20,
     'mutation_interval': 4,
     'transfer_interval': 8,
-    'train_episodes': 10
+    'train_episodes': 100
   }
 
   mutator_config = {
     'max_admitted': 6,
     'capacity': 15,
-    'min_performance': -4000,
-    'mc_low': -4000,
-    'mc_high': 4000,
+    'min_performance': 0.05,
+    'mc_low': 0.1,
+    'mc_high': 10,
   }
 
   reproducer_config = {
@@ -2167,6 +2168,7 @@ def main(_):
   }
 
   run_type = 'eval'
+  eval_types = ['predictability']
 
   if run_type == 'train':
     poet = POET(init_dads_config,
@@ -2186,21 +2188,42 @@ def main(_):
       print(f'Poet log file not found @ {poet_log_file}')
     cwd = os.getcwd()
     eval_dir = os.path.join(cwd, 'eval_dir')
-    env_stats = get_env_stats(config=init_dads_config, eval_dir=eval_dir, log_dir=log_dir,
-                  env_config=init_env_config, env_name='default_env')
-    observations = [env_stats[step_idx][0] for step_idx in range(len(env_stats))]
-    actions = [env_stats[step_idx][1] for step_idx in range(len(env_stats))]
-    logp = [env_stats[step_idx][2] for step_idx in range(len(env_stats))]
-    tot_return = [env_stats[step_idx][3] for step_idx in range(len(env_stats))]
-    cur_predicted_trajectory = [env_stats[step_idx][4] for step_idx in range(len(env_stats))]
-    print(observations)
-
-  # ea_pairs = EnvPairs(init_dads_config, log_dir)
-  # ea_pairs.train_on_new_env(stub_env_config)
-  # import pprint
-  # pp = pprint.PrettyPrinter(indent=4)
-  # pp.pprint(ea_pairs.pairs)
-  # # TODO: manage access to agent_dir and env_config
+    if 'predictability' in eval_types:
+      env_stats = get_env_stats(config=init_dads_config, eval_dir=eval_dir, log_dir=log_dir,
+                    env_config=init_env_config, env_name='default_env')
+      trajectory = [env_stats[idx][0] for idx in range(len(env_stats))]
+      actions = [env_stats[idx][1] for idx in range(len(env_stats))]
+      logp = [env_stats[idx][2] for idx in range(len(env_stats))]
+      tot_return = [env_stats[idx][3] for idx in range(len(env_stats))]
+      predicted_trajectory = [env_stats[idx][4] for idx in range(len(env_stats))]
+      trajectory_error = trajectory_diff(trajectory, predicted_trajectory)
+      mean_error, var_error = calculate_trajectory_error_stats(trajectory_error)
+      plot_trajectory_planner_error(mean_error, var_error)
+      print(trajectory_error)
+    if 'diversity' in eval_types:
+      # 1. Sample each z in Z uniform one-hot prior over N trajectories
+      # 2. Use Kernel Density Estimation (KDE) to extract an estimate of underlying PDF
+      # 3. Plot grid of KL divergence of each and the range of KL Divergences (coloured grid)
+      # 4. Compare the KL div range of DADS with ROEL
+      pass
+    if 'generalise' in eval_types:
+      # Compare the predictability of trajectories on each other when deployed to a range of environments
+      # 1. Sample z in Z on policy in each and sample trajectories
+      # 2. Compare KL divergence of policy rollout of each on a range of off-policy environments
+      # 3. Use this as a statistic and do regular hypothesis test for level of significance given number of samples
+      # 4. Accept or reject the hypothesis
+      pass
+    if 'initialization' in eval_types:
+      # Look at procedure for initialization of ROEL when deployed with reward on unseen environment with supervision
+      # Make z evenly distributed (might use continuous) then just learn on reward but with network preconditioned
+      # weights, this has the advantage of using the informatic to sample good ideas across the environment.
+      pass
+    if 'inverse' in eval_types:
+      # Add reward into ROEL and search for prior over reward
+      # 1. rollout policy of z in Z and get reward
+      # 2. select the combination of rewards that maximise the performance
+      # 3. optimize SAC but with these rewards fixed
+      pass
 
 
 if __name__ == '__main__':

@@ -66,6 +66,21 @@ class TestReproducer:
     ea_list, archived_list = _remove_oldest(ea_list, archived_list, removals)
     assert len(archived_list) == removals
 
+  def test_child_list(self, num_children=10):
+    parent = Env_config(
+      name='init_parent',
+      ground_roughness=0,
+      pit_gap=[],
+      stump_width=[],
+      stump_height=[],
+      stump_float=[],
+      stair_height=[],
+      stair_width=[],
+      stair_steps=[]
+    )
+    for idx in range(num_children):
+      child = self.reproducer.reproduce(parent)
+      
 
 def test_reproducer():
   test_class = TestReproducer()
