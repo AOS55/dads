@@ -305,7 +305,7 @@ def setup_agent_dir(log_dir, env_name):
   return log_dir, model_dir, save_dir
 
 
-def get_env_stats(config, eval_dir, log_dir, env_config, env_name='default_env'):
+def get_eval_agent(config, log_dir, env_config, env_name='default_env'):
   dads_config = config
   env_name = env_name
   model_dir = os.path.join(log_dir, env_name)
@@ -360,7 +360,38 @@ def get_env_stats(config, eval_dir, log_dir, env_config, env_name='default_env')
                deterministic_eval=dads_config['deterministic_eval'],
                num_evals=dads_config['num_evals'],
                restore_training=dads_config['restore_training'])
+  return agent
+
+
+def get_env_stats(config, eval_dir, log_dir, env_config, env_name='default_env'):
+  """
+  Get single rollout stats for sampled performance from a given environment
+
+  :param config:
+  :param eval_dir:
+  :param log_dir:
+  :param env_config:
+  :param env_name:
+  :return:
+  """
+  agent = get_eval_agent(config, log_dir, env_config, env_name=env_name)
   stats = agent.eval_agent_stats(eval_dir)
+  return stats
+
+
+def get_one_hot_env_stats(config, eval_dir, log_dir, env_config, env_name='default_env'):
+  """
+  Get a group of rollouts on an environment over each skill
+
+  :param config:
+  :param eval_dir:
+  :param log_dir:
+  :param env_config:
+  :param env_name:
+  :return:
+  """
+  agent = get_eval_agent(config, log_dir, env_config, env_name=env_name)
+  stats = agent.eval_agent_one_hot()
   return stats
 
 
@@ -1843,6 +1874,43 @@ class DADS:
             close_environment=True if eval_idx == per_skill_evaluations - 1 else False)
     return eval_trajectory
 
+  def eval_agent_one_hot(self):
+    eval_policy = self.eval_policy
+    dynamics = self.agent.skill_dynamics
+    self.skill_type = 'discrete_uniform'
+    per_skill_evaluations = 10
+    preset_skill = np.zeros(self.num_skills, dtype=int)
+    predict_trajectory_steps = 0
+    one_hot_eval_samples = np.empty((self.num_skills, per_skill_evaluations), dtype=object)
+    for idx in range(self.num_skills):
+      preset_skill[idx] = 1
+      eval_env = get_environment(env_name=self.env_name, env_config=self.env_config)
+      eval_env = wrap_env(
+        skill_wrapper.SkillWrapper(
+          eval_env,
+          num_latent_skills=self.num_skills,
+          skill_type=self.skill_type,
+          preset_skill=preset_skill,
+          min_steps_before_resample=self.min_steps_before_resample,
+          resample_prob=self.resample_prob),
+        max_episode_steps=self.max_env_steps
+        )
+      traj_samples = np.array([])
+      with self.sess.as_default():
+        for eval_idx in range(per_skill_evaluations):
+          eval_trajectory = self.run_on_env(
+            eval_env,
+            eval_policy,
+            dynamics=dynamics,
+            predict_trajectory_steps=predict_trajectory_steps,
+            return_data=True,
+            close_environment=True if eval_idx == per_skill_evaluations - 1 else False)
+          # traj_samples = np.vstack((traj_samples, eval_trajectory))
+          one_hot_eval_samples[idx, eval_idx] = eval_trajectory
+      preset_skill[idx] = 0
+    return one_hot_eval_samples
+
+
   @staticmethod
   def _normal_projection_net(action_spec, init_means_output_factor=0.1):
     """
@@ -2168,7 +2236,7 @@ def main(_):
   }
 
   run_type = 'eval'
-  eval_types = ['predictability']
+  eval_types = ['diversity']
 
   if run_type == 'train':
     poet = POET(init_dads_config,
@@ -2201,6 +2269,9 @@ def main(_):
       plot_trajectory_planner_error(mean_error, var_error)
       print(trajectory_error)
     if 'diversity' in eval_types:
+      env_stats = get_one_hot_env_stats(config=init_dads_config, eval_dir=eval_dir, log_dir=log_dir,
+                                        env_config=init_env_config, env_name='default_env')
+      print(env_stats.shape)
       # 1. Sample each z in Z uniform one-hot prior over N trajectories
       # 2. Use Kernel Density Estimation (KDE) to extract an estimate of underlying PDF
       # 3. Plot grid of KL divergence of each and the range of KL Divergences (coloured grid)
