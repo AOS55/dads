@@ -2016,7 +2016,7 @@ def main(_):
     'random_skills': FLAGS.random_skills,
     'min_steps_before_resample': FLAGS.min_steps_before_resample,
     'resample_prob': FLAGS.resample_prob,
-    'max_env_steps': FLAGS.random_skills,
+    'max_env_steps': FLAGS.max_env_steps,
     'observation_omit_size': 0,
     'reduced_observation': FLAGS.reduced_observation,
     'hidden_layer_size': FLAGS.hidden_layer_size,
@@ -2058,23 +2058,23 @@ def main(_):
   }
 
   poet_config = {
-    'max_poet_iters': 20,
+    'max_poet_iters': 40,
     'mutation_interval': 4,
     'transfer_interval': 8,
-    'train_episodes': 10
+    'train_episodes': 100
   }
 
   mutator_config = {
     'max_admitted': 6,
     'capacity': 15,
-    'min_performance': -4000,
-    'mc_low': -4000,
-    'mc_high': 4000,
+    'min_performance': 0.05,
+    'mc_low': 0.05,
+    'mc_high': 10.0,
   }
 
   reproducer_config = {
     'env_categories': ['roughness', 'pit', 'stump', 'stair'],
-    'master_seed': 4,
+    'master_seed': 42,
     'max_children': 3
   }
 
