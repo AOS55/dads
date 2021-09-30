@@ -2,6 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from statsmodels.tsa.statespace.kalman_filter import KalmanFilter
 import statsmodels.tsa.statespace.mlemodel as mle
+from pydlm import dlm, trend, seasonality, dynamic, autoReg, longSeason
 import pandas as pd
 
 
