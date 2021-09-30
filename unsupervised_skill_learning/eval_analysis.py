@@ -1,5 +1,8 @@
 import matplotlib.pyplot as plt
 import numpy as np
+from statsmodels.tsa.statespace.kalman_filter import KalmanFilter
+import statsmodels.tsa.statespace.mlemodel as mle
+import pandas as pd
 
 
 def trajectory_diff(actual_trajectory, predicted_trajectory) -> np.array:
@@ -81,3 +84,27 @@ def plot_trajectory_planner_error(pred_mean_data, pred_var_data):
     plt.show()
     idx += 1
   return
+
+
+def density_estimation(one_hot_array):
+  observation_names = ['Hull Angle', 'Hull Angular Velocity', 'Velocity-x', 'Velcoity-y', 'Hip 1 Joint Angle',
+                       'Hip 1 Joint Speed', 'Knee 1 Joint Angle', 'Knee 1 Joint Speed', 'Leg 1 Ground Contact Flag',
+                       'Hip 2 Joint Angle', 'Hip 2 Joint Speed', 'Knee 2 Joint Angle', 'Knee 2 Joint Speed',
+                       'Leg 2 Ground Contact Flag', 'LIDAR 1', 'LIDAR 2', 'LIDAR 3', 'LIDAR 4', 'LIDAR 5',
+                       'LIDAR 6', 'LIDAR 7', 'LIDAR 8', 'LIDAR 9', 'LIDAR 10']
+  for z in one_hot_array:
+    for sample in z:
+      trajectories = np.empty((len(sample), len(sample[0][0])))
+      for idx in range(len(sample)):
+        for obs_id in range(len(sample[idx][0])):
+          trajectories[idx][obs_id] = sample[idx][0][obs_id]
+      trajectory_df = pd.DataFrame(data=trajectories, columns=observation_names)
+      model = mle.MLEModel(trajectories, k_states=20, initialization='stationary', k_posdef=1)
+      # This isn't working perhaps try ARMA, I don't know if that is a good idea though?
+      # model = KalmanFilter(k_endog=trajectories, k_states=20, initialization='stationary')
+      # model['design'] = np.ones(len(sample[0][0])).reshape(len(sample[0][0]), 1)
+      # model['obs_cov'] = 100*np.eye(len(sample[0][0]))
+      # model['selection'] = np.ones(1)
+      # model['state_cov'] = [10000]
+      # res = model.filter(sample[idx][0])
+      # states_kfsm = res.filtered_state
