@@ -52,8 +52,8 @@ class Mutator:
       child = child._replace(agent_score=score)
       # if len(ea_pairs.pairs) >= self.max_capacity - self.reproducer.max_children:
       if not self._mc_satisfied(child.agent_score[0]):
-        # children_to_remove.append(child)
-        print(f'Child Score to remove is: {child.agent_score[0]}')
+        # child_list.remove(child)
+        print(f'Child removal score: {child.agent_score[0]}')
         continue
       else:
         novelty_score = compute_novelty_vs_archive(ea_pairs=ea_pairs,
@@ -62,11 +62,7 @@ class Mutator:
                                                    low=self.min_performance,
                                                    high=-self.min_performance)
         child_novelty_list.append((child, novelty_score))
-    # Might not be required as the child is removed if the value is in removal
-    # for child_removal in children_to_remove:
-    #   child_list.remove(child_removal)
     child_list = [x[0] for x in child_novelty_list]
-
     # Evaluate which policy to use on the new environment and ensure it satisfies the mc_criteria
     admitted = 0
     for child in child_list:

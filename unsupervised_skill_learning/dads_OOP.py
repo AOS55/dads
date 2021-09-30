@@ -2217,7 +2217,7 @@ def main(_):
   }
 
   poet_config = {
-    'max_poet_iters': 20,
+    'max_poet_iters': 40,
     'mutation_interval': 4,
     'transfer_interval': 8,
     'train_episodes': 100
@@ -2227,17 +2227,17 @@ def main(_):
     'max_admitted': 6,
     'capacity': 15,
     'min_performance': 0.05,
-    'mc_low': 0.1,
-    'mc_high': 10,
+    'mc_low': 0.05,
+    'mc_high': 10.0,
   }
 
   reproducer_config = {
     'env_categories': ['roughness', 'pit', 'stump', 'stair'],
-    'master_seed': 4,
+    'master_seed': 42,
     'max_children': 3
   }
 
-  run_type = 'eval'
+  run_type = 'train'
   eval_types = ['diversity']
 
   if run_type == 'train':
@@ -2248,55 +2248,6 @@ def main(_):
                 reproducer_config=reproducer_config)
     poet.run()
     print('Finished running POET!')
-  elif run_type == 'eval':
-    log_dir = log_dir
-    poet_log_file = os.path.join(log_dir, 'poet_vals.pkl')
-    try:
-      with open(poet_log_file, 'rb') as f:
-        ea_pairs, max_poet_iters = pkl.load(f)
-    except:
-      print(f'Poet log file not found @ {poet_log_file}')
-    cwd = os.getcwd()
-    eval_dir = os.path.join(cwd, 'eval_dir')
-    if 'predictability' in eval_types:
-      env_stats = get_env_stats(config=init_dads_config, eval_dir=eval_dir, log_dir=log_dir,
-                    env_config=init_env_config, env_name='default_env')
-      trajectory = [env_stats[idx][0] for idx in range(len(env_stats))]
-      actions = [env_stats[idx][1] for idx in range(len(env_stats))]
-      logp = [env_stats[idx][2] for idx in range(len(env_stats))]
-      tot_return = [env_stats[idx][3] for idx in range(len(env_stats))]
-      predicted_trajectory = [env_stats[idx][4] for idx in range(len(env_stats))]
-      trajectory_error = trajectory_diff(trajectory, predicted_trajectory)
-      mean_error, var_error = calculate_trajectory_error_stats(trajectory_error)
-      plot_trajectory_planner_error(mean_error, var_error)
-      print(trajectory_error)
-    if 'diversity' in eval_types:
-      env_stats = get_one_hot_env_stats(config=init_dads_config, eval_dir=eval_dir, log_dir=log_dir,
-                                        env_config=init_env_config, env_name='default_env')
-      print(env_stats.shape)
-      # 1. Sample each z in Z uniform one-hot prior over N trajectories
-      # 2. Use Kernel Density Estimation (KDE) to extract an estimate of underlying PDF
-      # 3. Plot grid of KL divergence of each and the range of KL Divergences (coloured grid)
-      # 4. Compare the KL div range of DADS with ROEL
-      pass
-    if 'generalise' in eval_types:
-      # Compare the predictability of trajectories on each other when deployed to a range of environments
-      # 1. Sample z in Z on policy in each and sample trajectories
-      # 2. Compare KL divergence of policy rollout of each on a range of off-policy environments
-      # 3. Use this as a statistic and do regular hypothesis test for level of significance given number of samples
-      # 4. Accept or reject the hypothesis
-      pass
-    if 'initialization' in eval_types:
-      # Look at procedure for initialization of ROEL when deployed with reward on unseen environment with supervision
-      # Make z evenly distributed (might use continuous) then just learn on reward but with network preconditioned
-      # weights, this has the advantage of using the informatic to sample good ideas across the environment.
-      pass
-    if 'inverse' in eval_types:
-      # Add reward into ROEL and search for prior over reward
-      # 1. rollout policy of z in Z and get reward
-      # 2. select the combination of rewards that maximise the performance
-      # 3. optimize SAC but with these rewards fixed
-      pass
 
 
 if __name__ == '__main__':

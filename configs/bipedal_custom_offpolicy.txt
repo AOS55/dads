@@ -16,13 +16,13 @@
 --run_train=1
 
 # metadata flags
---save_model=dads
---save_freq=10
---record_freq=100
+--save_model=roel
+--save_freq=20
+--record_freq=50
 --vid_name=skill
 
 # optimization hyperparmaters
---replay_buffer_capacity=100000
+--replay_buffer_capacity=10000
 
 # (set clear_buffer_iter=1 for on-policy)
 --clear_buffer_every_iter=0
