@@ -440,6 +440,9 @@ class EnvPairs:
     self.config['num_epochs'] += epochs
     self.config['save_model'] = save_model
     self.config['restore_training'] = True
+    self.config['num_epochs'] = pair.agent_config['num_epochs']
+    self.config['record_freq'] = pair.agent_config['record_freq']
+    self.config['save_freq'] = pair.agent_config['save_freq']
     agent = self._create_agent(self.config)
     perf = agent.train_agent()
     del agent
