@@ -302,7 +302,10 @@ def setup_agent_dir(log_dir, env_name):
   save_dir = os.path.join(model_dir, 'models')
   if not tf.io.gfile.exists(save_dir):
     tf.io.gfile.makedirs(save_dir)
-  return log_dir, model_dir, save_dir
+  save_model = os.path.join(model_dir, 'roel')
+  if not tf.io.gfile.exists(save_model):
+    tf.io.gfile.makedirs(save_model)
+  return log_dir, model_dir, save_dir, save_model
 
 
 def get_eval_agent(config, log_dir, env_config, env_name='default_env'):
@@ -310,8 +313,10 @@ def get_eval_agent(config, log_dir, env_config, env_name='default_env'):
   env_name = env_name
   model_dir = os.path.join(log_dir, env_name)
   save_dir = os.path.join(model_dir, 'models')
+  save_model = os.path.join(model_dir, 'roel')
   dads_config['log_dir'] = model_dir
   dads_config['save_dir'] = save_dir
+  dads_config['save_model'] = save_model
   dads_config['env_config'] = env_config
   agent = DADS(env_name=dads_config['env_name'],
                env_config=dads_config['env_config'],
@@ -454,11 +459,12 @@ class EnvPairs:
     :param env_config:
     :return: None
     """
-    log_dir, model_dir, save_dir = setup_agent_dir(self.log_dir, env_config.name)
+    log_dir, model_dir, save_dir, save_model = setup_agent_dir(self.log_dir, env_config.name)
     self.config['name'] = env_config.name
     self.config['env_config'] = env_config
     self.config['log_dir'] = model_dir
     self.config['save_dir'] = save_dir
+    self.config['save_model'] = save_model
     agent = self._create_agent(self.config)
     perf = agent.train_agent()
     del agent
@@ -551,7 +557,7 @@ class EnvPairs:
     return best_agent, best_score
 
   def update_ea_pair(self, pair, parent_name, env_config):
-    log_dir, model_dir, save_dir = setup_agent_dir(self.log_dir, env_config.name)
+    log_dir, model_dir, save_dir, save_model = setup_agent_dir(self.log_dir, env_config.name)
     new_pair = EAPair(env_name=env_config.name,
                       env_config=env_config,
                       agent_config=copy.deepcopy(pair.agent_config),  # need to deepcopy to prevent mutating parent
@@ -561,17 +567,19 @@ class EnvPairs:
     new_agent_config = new_pair.agent_config
     new_agent_config['log_dir'] = model_dir
     new_agent_config['save_dir'] = save_dir
+    new_agent_config['save_model'] = save_model
     new_agent_config['env_name'] = env_config.name
     new_agent_config['env_config'] = env_config
     new_pair = new_pair._replace(agent_config=new_agent_config)
     return new_pair
 
   def eval_ea_pair(self, pair, eval_dir):
-    log_dir, model_dir, save_dir = setup_agent_dir(self.log_dir, pair.env_config.name)
+    log_dir, model_dir, save_dir, save_model = setup_agent_dir(self.log_dir, pair.env_config.name)
     self.config['name'] = pair.env_config.name
     self.config['env_config'] = pair.env_config
     self.config['log_dir'] = model_dir
     self.config['save_dir'] = save_dir
+    self.config['save_model'] = save_model
     agent = self._create_agent(self.config)
     agent.eval_agent_stats(eval_dir)
     del agent
@@ -2155,7 +2163,8 @@ def main(_):
 
   # Setup initial directories
   root_dir, log_dir, save_dir = setup_top_dirs(FLAGS.logdir, FLAGS.environment)
-  log_dir, model_dir, save_dir = setup_agent_dir(log_dir, 'default_env')
+  log_dir, model_dir, save_dir, save_model = setup_agent_dir(log_dir, 'default_env')
+
 
   init_env_config = Env_config(
     name='default_env',
@@ -2203,7 +2212,7 @@ def main(_):
     'collect_steps': FLAGS.collect_steps,
     'action_clipping': FLAGS.action_clipping,
     'num_epochs': FLAGS.num_epochs,
-    'save_model': FLAGS.save_model,
+    'save_model': save_model,
     'save_freq': FLAGS.save_freq,
     'clear_buffer_every_iter': FLAGS.clear_buffer_every_iter,
     'skill_dynamics_train_steps': FLAGS.skill_dyn_train_steps,

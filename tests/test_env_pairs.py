@@ -74,7 +74,7 @@ def setup_config(model_dir, save_dir, test_env_config):
 class TestEnvPairs:
   def __init__(self, env_config=test_env_config):
     root_dir, log_dir, save_dir = setup_top_dirs('log_dir', 'bipedal_walker_custom')
-    log_dir, model_dir, save_dir = setup_agent_dir(log_dir, 'test_env')
+    log_dir, model_dir, save_dir, save_model = setup_agent_dir(log_dir, 'test_env')
     test_config = setup_config(model_dir, save_dir, env_config)
     self.ea_pairs = EnvPairs(test_config, log_dir)
     self.reproducer = Reproducer(42, ['stump', 'stairs'], 5)
