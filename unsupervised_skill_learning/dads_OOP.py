@@ -435,6 +435,7 @@ class EnvPairs:
     self.config['env_config'] = pair.env_config
     self.config['log_dir'] = model_dir
     self.config['save_dir'] = save_dir
+    self.config['num_epochs'] = pair.agent_config['num_epochs']
     self.config['num_epochs'] += epochs
     self.config['restore_training'] = True
     agent = self._create_agent(self.config)
@@ -442,6 +443,9 @@ class EnvPairs:
     del agent
     tf.keras.backend.clear_session()
     pair._replace(agent_score=perf)
+    agent_config = pair.agent_config
+    agent_config['num_epochs'] = self.config['num_epochs']
+    pair._replace(agent_config=agent_config)
     return pair
 
   def train_on_new_env(self, env_config):
