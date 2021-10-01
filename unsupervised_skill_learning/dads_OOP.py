@@ -2220,7 +2220,7 @@ def main(_):
     'max_poet_iters': 40,
     'mutation_interval': 4,
     'transfer_interval': 8,
-    'train_episodes': 100
+    'train_episodes': 10
   }
 
   mutator_config = {
