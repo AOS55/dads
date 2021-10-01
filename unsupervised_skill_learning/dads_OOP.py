@@ -435,13 +435,14 @@ class EnvPairs:
     :param epochs: number of epochs to train the environment for
     :return: pair with updated performance & model
     """
-    log_dir, model_dir, save_dir = setup_agent_dir(self.log_dir, pair.env_config.name)
+    log_dir, model_dir, save_dir, save_model = setup_agent_dir(self.log_dir, pair.env_config.name)
     self.config['name'] = pair.env_config.name
     self.config['env_config'] = pair.env_config
     self.config['log_dir'] = model_dir
     self.config['save_dir'] = save_dir
     self.config['num_epochs'] = pair.agent_config['num_epochs']
     self.config['num_epochs'] += epochs
+    self.config['save_model'] = save_model
     self.config['restore_training'] = True
     agent = self._create_agent(self.config)
     perf = agent.train_agent()
