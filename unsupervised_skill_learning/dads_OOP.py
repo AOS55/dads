@@ -1239,7 +1239,7 @@ class DADS:
       self.episode_return_buffer = _process_episode_data(self.episode_return_buffer, collect_info['episode_return'])
       sample_count += self.initial_collect_steps
 
-    while iter_count < self.num_epochs:
+    while iter_count <= self.num_epochs:
 
       if self.save_model is not None and iter_count % self.save_freq == 0:
         with self.sess.as_default():
