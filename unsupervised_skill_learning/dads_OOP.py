@@ -273,19 +273,15 @@ def setup_top_dirs(root_dir, env_name):
 
   :param root_dir: root directory used for logging passed in flags as logdir!
   :param env_name: environment name used to generate the log directory
-  :return: paths to root_dir, log_dir, save_dir
+  :return: paths to root_dir, log_dir
   """
   root_dir = os.path.abspath(os.path.expanduser(root_dir))
   if not tf.io.gfile.exists(root_dir):
     tf.io.gfile.makedirs(root_dir)
   log_dir = os.path.join(root_dir, env_name)
-
   if not tf.io.gfile.exists(log_dir):
     tf.io.gfile.makedirs(log_dir)
-  save_dir = os.path.join(log_dir, 'models')
-  if not tf.io.gfile.exists(save_dir):
-    tf.io.gfile.makedirs(save_dir)
-  return root_dir, log_dir, save_dir
+  return root_dir, log_dir
 
 
 def setup_agent_dir(log_dir, env_name):
@@ -491,6 +487,7 @@ class EnvPairs:
     self.config['env_config'] = env_config
     self.config['log_dir'] = log_dir  # use the agent model dir to train on
     self.config['save_dir'] = save_dir
+    self.config['save_model'] = None
     self.config['num_epochs'] = 5  # eval over 5 epochs of training (sample by training on env)
     self.config['record_freq'] = 10  # set record_freq to be higher than num_epochs to evaluate on
     self.config['save_freq'] = 10  # set save_freq to be higher than num_epochs to evaluate on
@@ -1406,9 +1403,8 @@ class DADS:
           vid_name=self.vid_name,
           plot_name='traj_plot'
         )
-
-      iter_count += 1
       print(f'iter_count is: {iter_count}')
+      iter_count += 1
 
     return np.mean(np.concatenate(running_dads_reward)),\
            np.mean(np.concatenate(running_logp)),\
@@ -2163,7 +2159,7 @@ def main(_):
   logging.set_verbosity(logging.INFO)
 
   # Setup initial directories
-  root_dir, log_dir, save_dir = setup_top_dirs(FLAGS.logdir, FLAGS.environment)
+  root_dir, log_dir = setup_top_dirs(FLAGS.logdir, FLAGS.environment)
   log_dir, model_dir, save_dir, save_model = setup_agent_dir(log_dir, 'default_env')
 
 
