@@ -521,12 +521,12 @@ class EnvPairs:
 
     raw_scores = []
     for agent in self.pairs:
-      score = self.evaluate_agent_on_env(agent.agent_config['log_dir'], agent.agent_config['save_model'],
+      score = self.evaluate_agent_on_env(agent.agent_config['log_dir'], agent.agent_config['save_dir'],
                                          candidate_env_config)
       raw_scores.append(_cap_score(score[0], lower_bound, upper_bound))
       del agent
     for agent in self.archived_pairs:
-      score = self.evaluate_agent_on_env(agent.agent_config['log_dir'], agent.agent_config['save_model'],
+      score = self.evaluate_agent_on_env(agent.agent_config['log_dir'], agent.agent_config['save_dir'],
                                          candidate_env_config)
       raw_scores.append(_cap_score(score[0], lower_bound, upper_bound))
       del agent
