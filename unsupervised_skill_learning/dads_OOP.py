@@ -487,9 +487,9 @@ class EnvPairs:
     self.config['env_config'] = env_config
     self.config['log_dir'] = log_dir  # use the agent model dir to train on
     self.config['save_dir'] = save_dir
-    self.config['save_model'] = None
+    self.config['save_model'] = None  # to prevent the model overwriting checkpoint saves
     self.config['num_epochs'] = 5  # eval over 5 epochs of training (sample by training on env)
-    self.config['record_freq'] = 10  # set record_freq to be higher than num_epochs to evaluate on
+    self.config['record_freq'] = None  # set record_freq to be higher than num_epochs to evaluate on
     self.config['save_freq'] = 10  # set save_freq to be higher than num_epochs to evaluate on
     self.config['restore_training'] = False
     # TODO: Check this is not overwriting the saved model, should just deploy the model for evaluation
