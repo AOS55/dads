@@ -79,6 +79,7 @@ class Mutator:
       num_removals = len(ea_pairs.pairs) - self.max_capacity
       print(f'removing {num_removals} pairs')
       ea_pair_list, archived_pairs = self._remove_oldest(ea_pairs.pairs, ea_pairs.archived_pairs, num_removals)
+    print(f'ea pair list length: {len(ea_pair_list)}, archived ea pair list length: {len(archived_pairs)}')
     return ea_pair_list, archived_pairs
 
   def _eligible_to_reproduce(self, pair):
