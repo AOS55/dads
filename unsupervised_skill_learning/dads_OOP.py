@@ -2237,8 +2237,8 @@ def main(_):
   mutator_config = {
     'max_admitted': 6,
     'capacity': 9,
-    'min_performance': 0.05,
-    'mc_low': 0.05,
+    'min_performance': -5.0,
+    'mc_low': -5.0,
     'mc_high': 1000.0,
   }
 
