@@ -30,5 +30,5 @@ def transfer_model(new_agent_config, new_score, pair):
     model_path = os.path.join(cur_model_root_path, new_name)
   os.rename(cur_model_path, model_path)
   copytree(new_model_path, cur_model_path)
-  pair = pair.agent_config._replace(score=new_score)
+  pair = pair._replace(agent_score=new_score)
   return pair
