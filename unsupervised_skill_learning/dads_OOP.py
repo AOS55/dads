@@ -2229,22 +2229,22 @@ def main(_):
 
   poet_config = {
     'max_poet_iters': 40,
-    'mutation_interval': 1,
+    'mutation_interval': 3,
     'transfer_interval': 8,
     'train_episodes': FLAGS.num_epochs
   }
 
   mutator_config = {
-    'max_admitted': 6,
-    'capacity': 2,
-    'min_performance': -5.0,
-    'mc_low': -5.0,
-    'mc_high': 1000.0,
+    'max_admitted': 4,
+    'capacity': 6,
+    'min_performance': 0.05,
+    'mc_low': 0.05,
+    'mc_high': 100.0,
   }
 
   reproducer_config = {
     'env_categories': ['roughness', 'pit', 'stump', 'stair'],
-    'master_seed': 42,
+    'master_seed': 20,
     'max_children': 3
   }
 
