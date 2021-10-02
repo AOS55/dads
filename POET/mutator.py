@@ -71,11 +71,13 @@ class Mutator:
       if self._mc_satisfied(child.agent_score[0]):
         ea_pairs.pairs.append(child)
         admitted += 1
-      if admitted >= self.max_capacity:
+        print(f'added child: {child.env_name}')
+      if admitted >= self.max_admitted:
         break
 
     if len(ea_pairs.pairs) > self.max_capacity:
       num_removals = len(ea_pairs.pairs) - self.max_capacity
+      print(f'removing {num_removals} pairs')
       ea_pair_list, archived_pairs = self._remove_oldest(ea_pairs.pairs, ea_pairs.archived_pairs, num_removals)
     return ea_pair_list, archived_pairs
 

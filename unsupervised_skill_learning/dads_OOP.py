@@ -2164,7 +2164,6 @@ def main(_):
   root_dir, log_dir = setup_top_dirs(FLAGS.logdir, FLAGS.environment)
   log_dir, model_dir, save_dir, save_model = setup_agent_dir(log_dir, 'default_env')
 
-
   init_env_config = Env_config(
     name='default_env',
     ground_roughness=0,
