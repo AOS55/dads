@@ -69,7 +69,7 @@ def plot_trajectory_planner_error(pred_mean_data, pred_var_data):
   """
   plt.figure()
   idx = 0
-  observation_names = ['Hull Angle', 'Hull Angular Velocity', 'Velocity-x', 'Velcoity-y', 'Hip 1 Joint Angle',
+  observation_names = ['Hull Angle', 'Hull Angular Velocity', 'Velocity-x', 'Velocity-y', 'Hip 1 Joint Angle',
                        'Hip 1 Joint Speed', 'Knee 1 Joint Angle', 'Knee 1 Joint Speed', 'Leg 1 Ground Contact Flag',
                        'Hip 2 Joint Angle', 'Hip 2 Joint Speed', 'Knee 2 Joint Angle', 'Knee 2 Joint Speed',
                        'Leg 2 Ground Contact Flag', 'LIDAR 1', 'LIDAR 2', 'LIDAR 3', 'LIDAR 4', 'LIDAR 5',
