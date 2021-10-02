@@ -438,7 +438,9 @@ class EnvPairs:
     self.config['save_dir'] = save_dir
     self.config['save_model'] = save_model
     self.config['num_epochs'] = pair.agent_config['num_epochs']
+    print(f"Num epochs original: {self.config['num_epochs']}")
     self.config['num_epochs'] += epochs
+    print(f"Num epochs after addition: {self.config['num_epochs']}")
     self.config['record_freq'] = pair.agent_config['record_freq']
     self.config['save_freq'] = pair.agent_config['save_freq']
     self.config['restore_training'] = True
@@ -2125,6 +2127,7 @@ class POET:
         self.ea_pairs.pairs, self.ea_pairs.archived_pairs = self.mutator.mutate_env(self.ea_pairs)
       print(f'mutated {poet_step} times')
       # Train each ea_pair in list
+      print(f'pairs in {self.ea_pairs.pairs}, episodes to train for {self.train_episodes}')
       for idx, pair in enumerate(self.ea_pairs.pairs):
           pair = self.ea_pairs.train_agent(pair, self.train_episodes)
           self.ea_pairs.pairs[idx] = pair

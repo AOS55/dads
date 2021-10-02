@@ -24,6 +24,7 @@ def euclidian_distance(x, y):
 def compute_novelty_vs_archive(ea_pairs, candidate_env, k, low, high):
   distances = []
   pata_ec = ea_pairs.update_pata_ec(candidate_env, low, high)
+  print(f'Calculated pata_ec line 26: {pata_ec}')
   for agent in ea_pairs.pairs:
     print(agent.pata_ec)
     distances.append(euclidian_distance(agent.pata_ec, pata_ec))
