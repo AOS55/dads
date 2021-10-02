@@ -1,6 +1,6 @@
 from POET.reproducer import Reproducer
 from POET.novelty import compute_novelty_vs_archive
-
+from POET.utils import transfer_model
 
 class Mutator:
   """
@@ -67,7 +67,8 @@ class Mutator:
     for child in child_list:
       agent_config, agent_score = ea_pairs.evaluate_transfer(candidate_env_config=child.env_config)
       agent_config['num_epochs'] = 0
-      child = child._replace(agent_config=agent_config, agent_score=agent_score)
+      # child = child._replace(agent_config=agent_config, agent_score=agent_score)  # change to the replace function
+      child = transfer_model(agent_config, agent_score, child)
       if self._mc_satisfied(child.agent_score[0]):
         ea_pairs.pairs.append(child)
         admitted += 1

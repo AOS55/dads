@@ -57,7 +57,7 @@ from envs import bipedal_walker_custom
 from envs.bipedal_walker_custom import Env_config
 
 from POET.mutator import Mutator
-from POET.utils import EAPair
+from POET.utils import EAPair, transfer_model
 from POET.stats import compute_centered_ranks
 
 import pyvirtualdisplay
@@ -2135,8 +2135,9 @@ class POET:
       for idx, pair in enumerate(self.ea_pairs.pairs):
         if poet_step != 0 and poet_step % self.mutation_interval == 0:
           best_agent, best_score = self.ea_pairs.evaluate_transfer(pair.env_config)
-          pair = pair._replace(agent_config=best_agent, agent_score=best_score)
-          self.ea_pairs.pairs[idx] = pair
+          pair = transfer_model(best_agent, best_score, pair)
+          # pair = pair._replace(agent_config=best_agent, agent_score=best_score)  # change to the replace function
+          self.ea_pairs.pairs[idx] = pair  # replace pair in ea_list for concurrency
       # save checkpoint of POET state
       with open(poet_log_file, 'wb') as f:
         pkl.dump([self.ea_pairs, self.max_poet_iters - poet_step], f)
