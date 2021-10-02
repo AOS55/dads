@@ -1,6 +1,6 @@
 from collections import namedtuple
 import os
-from shutil import copy2, move, copy
+from shutil import copy2, move, copy, copytree
 from pathlib import Path
 
 EAPair = namedtuple('EAPair', [
@@ -15,7 +15,6 @@ EAPair = namedtuple('EAPair', [
 
 
 def transfer_model(new_agent_config, new_score, pair):
-
   # copy new model across
   id_path = 1
   new_model_path = new_agent_config['save_dir']
@@ -30,6 +29,6 @@ def transfer_model(new_agent_config, new_score, pair):
     new_name = cur_model_name + '-' + str(id_path)
     model_path = os.path.join(cur_model_root_path, new_name)
   os.rename(cur_model_path, model_path)
-  copy(new_model_path, cur_model_path)
+  copytree(new_model_path, cur_model_path)
   pair = pair.agent_config._replace(score=new_score)
   return pair
