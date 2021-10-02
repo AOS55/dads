@@ -1248,7 +1248,7 @@ class DADS:
       self.episode_size_buffer = _process_episode_data(self.episode_size_buffer, collect_info['episode_sizes'])
       self.episode_return_buffer = _process_episode_data(self.episode_return_buffer, collect_info['episode_return'])
       sample_count += self.initial_collect_steps
-
+    print(f'iter_count at start: {iter_count}, self.num_epochs at start: {self.num_epochs}')
     while iter_count <= self.num_epochs:
 
       if self.save_model is not None and iter_count % self.save_freq == 0:
