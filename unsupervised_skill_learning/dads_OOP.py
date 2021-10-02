@@ -1441,10 +1441,10 @@ class DADS:
           self.rb_checkpointer.save(global_step=iter_count)
           self.agent.save_variables(global_step=iter_count)
         # Save numpy binaries
-        np.save(os.path.join(self.log_dir, 'sample_count'), sample_count)
-        np.save(os.path.join(self.log_dir, 'episode_size_buffer'), self.episode_size_buffer)
-        np.save(os.path.join(self.log_dir, 'episode_return_path'), self.episode_return_buffer)
-        np.save(os.path.join(self.log_dir, 'iter_count'), iter_count)
+        # np.save(os.path.join(self.log_dir, 'sample_count'), sample_count)
+        # np.save(os.path.join(self.log_dir, 'episode_size_buffer'), self.episode_size_buffer)
+        # np.save(os.path.join(self.log_dir, 'episode_return_path'), self.episode_return_buffer)
+        # np.save(os.path.join(self.log_dir, 'iter_count'), iter_count)
 
       with self.sess.as_default():
         time_step, collect_info = self.collect_experience(time_step,
