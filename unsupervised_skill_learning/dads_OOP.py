@@ -38,19 +38,19 @@ from tf_agents.utils import common
 from tf_agents.utils import nest_utils
 
 from unsupervised_skill_learning import dads_agent
-from unsupervised_skill_learning.eval_analysis import trajectory_diff, calculate_trajectory_error_stats,\
-  plot_trajectory_planner_error
+# from unsupervised_skill_learning.eval_analysis import trajectory_diff, calculate_trajectory_error_stats,\
+#   plot_trajectory_planner_error
 
 from envs import skill_wrapper
 from envs import video_wrapper
-from envs.gym_mujoco import ant
-from envs.gym_mujoco import half_cheetah
-from envs.gym_mujoco import humanoid
-from envs.gym_mujoco import point_mass
+# from envs.gym_mujoco import ant
+# from envs.gym_mujoco import half_cheetah
+# from envs.gym_mujoco import humanoid
+# from envs.gym_mujoco import point_mass
 
-from envs import dclaw
-from envs import dkitty_redesign
-from envs import hand_block
+# from envs import dclaw
+# from envs import dkitty_redesign
+# from envs import hand_block
 
 from envs import bipedal_walker
 from envs import bipedal_walker_custom
@@ -2230,17 +2230,17 @@ def main(_):
 
   poet_config = {
     'max_poet_iters': 40,
-    'mutation_interval': 1,
+    'mutation_interval': 3,
     'transfer_interval': 8,
     'train_episodes': FLAGS.num_epochs
   }
 
   mutator_config = {
     'max_admitted': 6,
-    'capacity': 15,
-    'min_performance': -10.0,
-    'mc_low': -10.0,
-    'mc_high': 10.0,
+    'capacity': 9,
+    'min_performance': 0.05,
+    'mc_low': 0.05,
+    'mc_high': 1000.0,
   }
 
   reproducer_config = {

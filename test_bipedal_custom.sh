@@ -1,10 +1,10 @@
 #!/bin/bash
-#SBATCH --ntasks 4 --cpus-per-task 28
+#SBATCH --ntasks 1 --cpus-per-task 5
 #SBATCH --partition=cpu
-#SBATCH --job-name=dads_test_script
-#SBATCH --time=12:00:00
-#SBATCH --output=dads_test_output
-#SBATCH --error=dads_test_error
+#SBATCH --job-name=roel_test_script
+#SBATCH --time=00:05:00
+#SBATCH --output=roel_test_output
+#SBATCH --error=roel_test_error
 
 # Modules to load for dads script
 module load libs/cudnn/10.1-cuda-10.0
@@ -29,5 +29,5 @@ echo Slurm job id is "${SLURM_JOBID}"
 echo This job runs on the following machines:
 echo "${SLURM_JOB_NODELIST}"
 
-python unsupervised_skill_learning/dads_OOP.py --logdir=log_dir --flagfile=configs/bipedal_custom_test_offpolicy.txt
+python unsupervised_skill_learning/dads_OOP.py --logdir=log_dir --flagfile=configs/bipedal_custom_offpolicy.txt
 
