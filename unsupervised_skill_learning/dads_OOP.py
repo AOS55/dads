@@ -2229,7 +2229,7 @@ def main(_):
 
   poet_config = {
     'max_poet_iters': 40,
-    'mutation_interval': 3,
+    'mutation_interval': 1,
     'transfer_interval': 8,
     'train_episodes': FLAGS.num_epochs
   }
