@@ -109,3 +109,28 @@ def density_estimation(one_hot_array):
       # model['state_cov'] = [10000]
       # res = model.filter(sample[idx][0])
       # states_kfsm = res.filtered_state
+
+
+def find_best_z(one_hot_array):
+  z_list = []
+  z_col = []
+  for z_num, z in enumerate(one_hot_array):
+    sample_list = []
+    sample_col = []
+    for sample_num, sample in enumerate(z):
+      len_sample = len(sample)
+      reward = np.empty(len_sample)
+      for idx in range(len_sample):
+        reward[idx] = sample[idx][3]
+      sample_list.append(reward)
+      sample_col.append(sample_num)
+    sample_df = pd.DataFrame(data=sample_list)
+    sample_df = sample_df.T
+    z_list.append(sample_df.sum())
+    z_col.append(z_num)
+  # print(z_list[1].mean())
+  z_mean_list = [z_list[idx].mean() for idx in range(len(z_list))]
+  z_var_list = [z_list[idx].var() for idx in range(len(z_list))]
+  z_df = pd.DataFrame(data=list(zip(z_mean_list, z_var_list)), columns=['mean', 'var'])
+  max_score_prior = z_df.idxmax()['mean']
+  return max_score_prior

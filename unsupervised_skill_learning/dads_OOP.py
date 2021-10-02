@@ -39,7 +39,7 @@ from tf_agents.utils import nest_utils
 
 from unsupervised_skill_learning import dads_agent
 from unsupervised_skill_learning.eval_analysis import trajectory_diff, calculate_trajectory_error_stats,\
-  plot_trajectory_planner_error
+  plot_trajectory_planner_error, find_best_z
 
 from envs import skill_wrapper
 from envs import video_wrapper
@@ -376,7 +376,7 @@ def get_env_stats(config, eval_dir, log_dir, env_config, env_name='default_env')
   """
   agent = get_eval_agent(config, log_dir, env_config, env_name=env_name)
   stats = agent.eval_agent_stats(eval_dir)
-  return stats
+  return stats, agent
 
 
 def get_one_hot_env_stats(config, eval_dir, log_dir, env_config, env_name='default_env'):
@@ -392,7 +392,7 @@ def get_one_hot_env_stats(config, eval_dir, log_dir, env_config, env_name='defau
   """
   agent = get_eval_agent(config, log_dir, env_config, env_name=env_name)
   stats = agent.eval_agent_one_hot()
-  return stats
+  return stats, agent
 
 
 class EnvPairs:
@@ -1399,7 +1399,7 @@ class DADS:
            np.mean(np.concatenate(running_logp)),\
            np.mean(np.concatenate(running_logp_altz))
 
-  def train_extrinsic(self):
+  def train_extrinsic(self, prior_id):
     train_writer = tf.compat.v1.summary.FileWriter(os.path.join(self.log_dir, 'train'), self.sess.graph)
     common.initialize_uninitialized_variables(self.sess)
     self.sess.run(self.train_summary_writer.init())
@@ -1428,9 +1428,9 @@ class DADS:
         time_step, collect_info = self.collect_experience(time_step,
                                                           buffer_list=[self.rbuffer],
                                                           num_steps=self.initial_collect_steps)
+      sample_count += self.initial_collect_steps
       self.episode_size_buffer = _process_episode_data(self.episode_size_buffer, collect_info['episode_sizes'])
       self.episode_return_buffer = _process_episode_data(self.episode_return_buffer, collect_info['episode_return'])
-      sample_count += self.initial_collect_steps
 
     while iter_count < self.num_epochs:
 
@@ -1454,14 +1454,32 @@ class DADS:
       self.episode_size_buffer = _process_episode_data(self.episode_size_buffer, collect_info['episode_sizes'])
       self.episode_return_buffer = _process_episode_data(self.episode_return_buffer, collect_info['episode_sizes'])
 
-      # need to sample and train see 1324 for dads agent training, ensure return can be generated, not sure if
+      # need to sample and train see for dads agent training, ensure return can be generated, not sure if
       # sample of trajectory needed for SAC
 
       for _ in range(1 if self.clear_buffer_every_iter else self.agent_train_steps):
         if self.clear_buffer_every_iter:
           trajectory_sample = self.rbuffer.gather_all_transitions()
         else:
-          trajectory_sample = self.rbuffer
+          trajectory_sample = self.rbuffer.get_next(sample_batch_size=self.agent_batch_size, num_steps=2)
+
+        trajectory_sample = _filter_trajectories(trajectory_sample)
+        trajectory_sample, is_weights = self.relabel_skill(
+          trajectory_sample,
+          relabel_type=self.agent_relabel_type,
+          cur_policy=self.relabel_policy,
+          cur_skill_dynamics=self.agent.skill_dynamics
+        )
+        if self.skill_dynamics_relabel_type is not None and 'importance_sampling' in self.skill_dynamics_relabel_type:
+          trajectory_sample = trajectory_sample._replace(policy_info=())
+        dads_reward, info = self.agent.train_loop(
+          trajectory_sample,
+          recompute_reward=False,
+          batch_size=self.agent_batch_size,
+          num_steps=self.agent_train_steps
+        )
+
+      return
 
   def collect_experience(self, time_step, buffer_list, num_steps):
     """
@@ -1626,7 +1644,7 @@ class DADS:
           [next_time_steps.observation[idx, :-self.num_skills]] *
           self.num_samples_for_relabelling)
 
-        # max over posterior log probability is exactly the max over log-prob of transitin under skill-dynamics
+        # max over posterior log probability is exactly the max over log-prob of transition under skill-dynamics
         posterior_log_probs = cur_skill_dynamics.get_log_prob(
           self.process_observation(cur_observations), alt_skills,
           self.process_observation(next_observations))
@@ -1959,7 +1977,6 @@ class DADS:
           resample_prob=self.resample_prob),
         max_episode_steps=self.max_env_steps
         )
-      traj_samples = np.array([])
       with self.sess.as_default():
         for eval_idx in range(per_skill_evaluations):
           eval_trajectory = self.run_on_env(
@@ -1973,7 +1990,6 @@ class DADS:
           one_hot_eval_samples[idx, eval_idx] = eval_trajectory
       preset_skill[idx] = 0
     return one_hot_eval_samples
-
 
   @staticmethod
   def _normal_projection_net(action_spec, init_means_output_factor=0.1):
@@ -2328,7 +2344,7 @@ def main(_):
   }
 
   run_type = 'eval'
-  eval_types = ['initialization']
+  eval_types = ['inverse']
 
   if run_type == 'train':
     poet = POET(init_dads_config,
@@ -2349,7 +2365,7 @@ def main(_):
     cwd = os.getcwd()
     eval_dir = os.path.join(cwd, 'eval_dir')
     if 'predictability' in eval_types:
-      env_stats = get_env_stats(config=init_dads_config, eval_dir=eval_dir, log_dir=log_dir,
+      env_stats, agent = get_env_stats(config=init_dads_config, eval_dir=eval_dir, log_dir=log_dir,
                     env_config=init_env_config, env_name='default_env')
       trajectory = [env_stats[idx][0] for idx in range(len(env_stats))]
       actions = [env_stats[idx][1] for idx in range(len(env_stats))]
@@ -2361,7 +2377,7 @@ def main(_):
       plot_trajectory_planner_error(mean_error, var_error)
       print(trajectory_error)
     if 'diversity' in eval_types:
-      env_stats = get_one_hot_env_stats(config=init_dads_config, eval_dir=eval_dir, log_dir=log_dir,
+      env_stats, agent = get_one_hot_env_stats(config=init_dads_config, eval_dir=eval_dir, log_dir=log_dir,
                                         env_config=init_env_config, env_name='default_env')
       print(env_stats.shape)
       # 1. Sample each z in Z uniform one-hot prior over N trajectories
@@ -2388,9 +2404,13 @@ def main(_):
       pass
     if 'inverse' in eval_types:
       # Add reward into ROEL and search for prior over reward
-      # 1. rollout policy of z in Z and get reward
+      # 1. rollout policy of z in Z and get reward -> fix z to make policy network locked on prior
       # 2. select the combination of rewards that maximise the performance
       # 3. optimize SAC but with these rewards fixed
+      one_hot_stats, agent = get_one_hot_env_stats(config=init_dads_config, eval_dir=eval_dir, log_dir=log_dir,
+                                                   env_config=init_env_config, env_name='default_env')
+      best_z = find_best_z(one_hot_stats)
+      agent.train_extrinsic(best_z)
       pass
 
 
