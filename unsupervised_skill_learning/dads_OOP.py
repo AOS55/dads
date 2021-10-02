@@ -1399,6 +1399,70 @@ class DADS:
            np.mean(np.concatenate(running_logp)),\
            np.mean(np.concatenate(running_logp_altz))
 
+  def train_extrinsic(self):
+    train_writer = tf.compat.v1.summary.FileWriter(os.path.join(self.log_dir, 'train'), self.sess.graph)
+    common.initialize_uninitialized_variables(self.sess)
+    self.sess.run(self.train_summary_writer.init())
+
+    time_step = self.py_env.reset()
+    iter_count = 0
+    sample_count = 0
+    self.episode_size_buffer.append(0)
+    self.episode_return_buffer.append(0.)
+
+    def _process_episode_data(ep_buffer, cur_data):
+      ep_buffer[-1] += cur_data[0]
+      ep_buffer += cur_data[1:]
+
+      # Only keep the last 100 episodes
+      if len(ep_buffer) > 101:
+        ep_buffer = ep_buffer[-101:]
+      return ep_buffer
+
+    def _filter_trajectories(trajectory):
+      valid_indices = (trajectory.step_type[:, 0] != 2)
+      return nest.map_structure(lambda x: x[valid_indices], trajectory)
+
+    if iter_count == 0:
+      with self.sess.as_default():
+        time_step, collect_info = self.collect_experience(time_step,
+                                                          buffer_list=[self.rbuffer],
+                                                          num_steps=self.initial_collect_steps)
+      self.episode_size_buffer = _process_episode_data(self.episode_size_buffer, collect_info['episode_sizes'])
+      self.episode_return_buffer = _process_episode_data(self.episode_return_buffer, collect_info['episode_return'])
+      sample_count += self.initial_collect_steps
+
+    while iter_count < self.num_epochs:
+
+      if self.save_model is not None and iter_count % self.save_freq == 0:
+        with self.sess.as_default():
+          self.train_checkpointer.save(global_step=iter_count)
+          self.policy_checkpointer.save(global_step=iter_count)
+          self.rb_checkpointer.save(global_step=iter_count)
+          self.agent.save_variables(global_step=iter_count)
+        # Save numpy binaries
+        np.save(os.path.join(self.log_dir, 'sample_count'), sample_count)
+        np.save(os.path.join(self.log_dir, 'episode_size_buffer'), self.episode_size_buffer)
+        np.save(os.path.join(self.log_dir, 'episode_return_path'), self.episode_return_buffer)
+        np.save(os.path.join(self.log_dir, 'iter_count'), iter_count)
+
+      with self.sess.as_default():
+        time_step, collect_info = self.collect_experience(time_step,
+                                                          buffer_list=[self.rbuffer],
+                                                          num_steps=self.collect_steps)
+      sample_count += self.collect_steps
+      self.episode_size_buffer = _process_episode_data(self.episode_size_buffer, collect_info['episode_sizes'])
+      self.episode_return_buffer = _process_episode_data(self.episode_return_buffer, collect_info['episode_sizes'])
+
+      # need to sample and train see 1324 for dads agent training, ensure return can be generated, not sure if
+      # sample of trajectory needed for SAC
+
+      for _ in range(1 if self.clear_buffer_every_iter else self.agent_train_steps):
+        if self.clear_buffer_every_iter:
+          trajectory_sample = self.rbuffer.gather_all_transitions()
+        else:
+          trajectory_sample = self.rbuffer
+
   def collect_experience(self, time_step, buffer_list, num_steps):
     """
     Collect episode size and reward over the buffer with a given number of steps
@@ -2055,6 +2119,34 @@ class DADS:
     return time_step
 
 
+class SAC:
+  def __init__(self,
+               env_name,
+               env_config,
+               log_dir,
+               max_env_steps
+               ):
+
+    # Initialize tensorboard logging
+    self.train_summary_writer = tf.compat.v2.summary.create_file_writer(os.path.join(log_dir, 'train', 'in_graph_data'),
+                                                                        flush_millis=10*1000)
+    self.train_summary_writer.set_as_default()
+
+    # Initialize environment
+    self.env_name = env_name
+    self.env_config = env_config
+    self.collect_env = get_environment(env_name, env_config)  # to collect data
+    self.eval_env = get_environment(env_name, env_config)  # to evaluate agent
+
+    # Initialize a global step type
+    self.global_step = tf.compat.v1.train.get_or_create_global_step()  # graph in which to create global step tensor
+
+    # Initialize env parameters
+    self.episode_size_buffer = []
+    self.episode_return_buffer = []
+    self.max_env_steps = max_env_steps
+
+
 class POET:
   """Paired Open-Ended Trailblazer"""
   def __init__(self,
@@ -2236,7 +2328,7 @@ def main(_):
   }
 
   run_type = 'eval'
-  eval_types = ['diversity']
+  eval_types = ['initialization']
 
   if run_type == 'train':
     poet = POET(init_dads_config,
@@ -2288,6 +2380,11 @@ def main(_):
       # Look at procedure for initialization of ROEL when deployed with reward on unseen environment with supervision
       # Make z evenly distributed (might use continuous) then just learn on reward but with network preconditioned
       # weights, this has the advantage of using the informatic to sample good ideas across the environment.
+      agent = SAC(FLAGS.environment,
+                  init_env_config,
+                  model_dir,
+                  FLAGS.max_env_steps)
+
       pass
     if 'inverse' in eval_types:
       # Add reward into ROEL and search for prior over reward
