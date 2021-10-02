@@ -75,7 +75,7 @@ class Mutator:
       if self._mc_satisfied(child.agent_score[0]):
         ea_pairs.pairs.append(child)
         admitted += 1
-      if admitted >= self.max_capacity:
+      if admitted >= self.max_admitted:
         break
 
     if len(ea_pairs.pairs) > self.max_capacity:
