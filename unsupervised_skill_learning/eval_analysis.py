@@ -1,3 +1,5 @@
+import matplotlib
+matplotlib.rcParams['text.usetex'] = True
 import matplotlib.pyplot as plt
 import numpy as np
 from statsmodels.tsa.statespace.kalman_filter import KalmanFilter
@@ -69,7 +71,7 @@ def plot_trajectory_planner_error(pred_mean_data, pred_var_data):
   """
   plt.figure()
   idx = 0
-  observation_names = ['Hull Angle', 'Hull Angular Velocity', 'Velocity-x', 'Velocity-y', 'Hip 1 Joint Angle',
+  observation_names = [r'\textbf{Hull Angle}', 'Hull Angular Velocity', 'Velocity-x', 'Velocity-y', 'Hip 1 Joint Angle',
                        'Hip 1 Joint Speed', 'Knee 1 Joint Angle', 'Knee 1 Joint Speed', 'Leg 1 Ground Contact Flag',
                        'Hip 2 Joint Angle', 'Hip 2 Joint Speed', 'Knee 2 Joint Angle', 'Knee 2 Joint Speed',
                        'Leg 2 Ground Contact Flag', 'LIDAR 1', 'LIDAR 2', 'LIDAR 3', 'LIDAR 4', 'LIDAR 5',
@@ -82,6 +84,9 @@ def plot_trajectory_planner_error(pred_mean_data, pred_var_data):
     plt.fill_between(np.linspace(0, len(mean_obs)-1, len(mean_obs)),
                      mean_obs+abs(var_obs), mean_obs-abs(var_obs),
                      alpha=0.2)
+    plt.grid()
+    plt.xlabel(r'Steps Predicted [-]')
+    plt.ylabel(r'Absolute Error [-]')
     plt.show()
     idx += 1
   return
@@ -109,6 +114,30 @@ def density_estimation(one_hot_array):
       # model['state_cov'] = [10000]
       # res = model.filter(sample[idx][0])
       # states_kfsm = res.filtered_state
+
+
+def reward_diversity_estimation(one_hot_array):
+  z_list = []
+  z_col = []
+  for z_num, z in enumerate(one_hot_array):
+    sample_list = []
+    sample_col = []
+    for sample_num, sample in enumerate(z):
+      len_sample = len(sample)
+      reward = np.empty(len_sample)
+      for idx in range(len_sample):
+        reward[idx] = sample[idx][3]
+      sample_list.append(reward)
+      sample_col.append(sample_num)
+    sample_df = pd.DataFrame(data=sample_list)
+    sample_df = sample_df.T
+    z_list.append(sample_df.sum())
+    z_col.append(z_num)
+  # print(z_list[1].mean())
+  z_mean_list = [z_list[idx].mean() for idx in range(len(z_list))]
+  z_var_list = [z_list[idx].var() for idx in range(len(z_list))]
+  z_df = pd.DataFrame(data=list(zip(z_mean_list, z_var_list)), columns=['mean', 'var'])
+  return z_df
 
 
 def find_best_z(one_hot_array):

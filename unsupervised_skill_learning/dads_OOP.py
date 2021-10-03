@@ -39,7 +39,7 @@ from tf_agents.utils import nest_utils
 
 from unsupervised_skill_learning import dads_agent
 from unsupervised_skill_learning.eval_analysis import trajectory_diff, calculate_trajectory_error_stats,\
-  plot_trajectory_planner_error, find_best_z
+  plot_trajectory_planner_error, find_best_z, reward_diversity_estimation
 
 from envs import skill_wrapper
 from envs import video_wrapper
@@ -1960,7 +1960,7 @@ class DADS:
     eval_policy = self.eval_policy
     dynamics = self.agent.skill_dynamics
     self.skill_type = 'discrete_uniform'
-    per_skill_evaluations = 10
+    per_skill_evaluations = 2
     preset_skill = np.zeros(self.num_skills, dtype=int)
     predict_trajectory_steps = 0
     one_hot_eval_samples = np.empty((self.num_skills, per_skill_evaluations), dtype=object)
@@ -2344,7 +2344,7 @@ def main(_):
   }
 
   run_type = 'eval'
-  eval_types = ['inverse']
+  eval_types = ['diversity']
 
   if run_type == 'train':
     poet = POET(init_dads_config,
@@ -2366,7 +2366,7 @@ def main(_):
     eval_dir = os.path.join(cwd, 'eval_dir')
     if 'predictability' in eval_types:
       env_stats, agent = get_env_stats(config=init_dads_config, eval_dir=eval_dir, log_dir=log_dir,
-                    env_config=init_env_config, env_name='default_env')
+                                       env_config=init_env_config, env_name='default_env')
       trajectory = [env_stats[idx][0] for idx in range(len(env_stats))]
       actions = [env_stats[idx][1] for idx in range(len(env_stats))]
       logp = [env_stats[idx][2] for idx in range(len(env_stats))]
@@ -2374,12 +2374,25 @@ def main(_):
       predicted_trajectory = [env_stats[idx][4] for idx in range(len(env_stats))]
       trajectory_error = trajectory_diff(trajectory, predicted_trajectory)
       mean_error, var_error = calculate_trajectory_error_stats(trajectory_error)
+
+      # Save file
+      cwd = os.getcwd()
+      file_path = os.path.join(cwd, 'planner_error_roel.pkl')  # change this name for baseline run
+      with open(file_path, 'wb') as f:
+        pkl.dump([mean_error, var_error], f)
+
       plot_trajectory_planner_error(mean_error, var_error)
       print(trajectory_error)
     if 'diversity' in eval_types:
       env_stats, agent = get_one_hot_env_stats(config=init_dads_config, eval_dir=eval_dir, log_dir=log_dir,
-                                        env_config=init_env_config, env_name='default_env')
+                                               env_config=init_env_config, env_name='default_env')
       print(env_stats.shape)
+      z_df = reward_diversity_estimation(env_stats)
+      # Save file
+      cwd = os.getcwd()
+      file_path = os.path.join(cwd, 'reward_z_df_baseline.pkl')  # change this name for baseline run
+      with open(file_path, 'wb') as f:
+        pkl.dump(z_df, f)
       # 1. Sample each z in Z uniform one-hot prior over N trajectories
       # 2. Use Kernel Density Estimation (KDE) to extract an estimate of underlying PDF
       # 3. Plot grid of KL divergence of each and the range of KL Divergences (coloured grid)
@@ -2415,5 +2428,5 @@ def main(_):
 
 
 if __name__ == '__main__':
-  pyvirtualdisplay.Display(visible=0, size=(1400, 900)).start()
+  # pyvirtualdisplay.Display(visible=0, size=(1400, 900)).start()
   tf.compat.v1.app.run(main)
