@@ -1,10 +1,10 @@
 #!/bin/bash
 #SBATCH --ntasks 8 --cpus-per-task 28
 #SBATCH --partition=cpu
-#SBATCH --job-name=roel_script
+#SBATCH --job-name=baseline_script
 #SBATCH --time=24:00:00
-#SBATCH --output=roel_main_output
-#SBATCH --error=roel_main_error
+#SBATCH --output=dads_bipedal_output
+#SBATCH --error=dads_bipedal_error
 
 # Modules to load for dads script
 module load libs/cudnn/10.1-cuda-10.0
