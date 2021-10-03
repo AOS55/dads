@@ -63,7 +63,7 @@
 --train_skill_dynamics_on_policy=0
 
 ### SHARED HYPERPARAMETERS ---------------------
---environment=bipedal_walker_custom
+--environment=bipedal_walker
 --max_env_steps=2000
 --reduced_observation=0
 
