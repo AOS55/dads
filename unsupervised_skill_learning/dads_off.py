@@ -54,14 +54,14 @@ import dads_agent
 
 from envs import skill_wrapper
 from envs import video_wrapper
-from envs.gym_mujoco import ant
-from envs.gym_mujoco import half_cheetah
-from envs.gym_mujoco import humanoid
-from envs.gym_mujoco import point_mass
+# from envs.gym_mujoco import ant
+# from envs.gym_mujoco import half_cheetah
+# from envs.gym_mujoco import humanoid
+# from envs.gym_mujoco import point_mass
 
-from envs import dclaw
-from envs import dkitty_redesign
-from envs import hand_block
+# from envs import dclaw
+# from envs import dkitty_redesign
+# from envs import hand_block
 
 from envs import bipedal_walker
 import pyvirtualdisplay
