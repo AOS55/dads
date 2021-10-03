@@ -294,7 +294,6 @@ def get_environment(env_name='point_mass'):
         randomize_initial_position=bool(FLAGS.randomized_initial_distribution),
         randomize_initial_rotation=bool(FLAGS.randomized_initial_distribution))
   elif env_name == 'bipedal_walker':
-    # pyvirtualdisplay.Display(visible=0, size=(1400, 900)).start()
     env = bipedal_walker.BipedalWalker()
   else:
     # note this is already wrapped, no need to wrap again
@@ -1711,4 +1710,5 @@ def main(_):
 
 
 if __name__ == '__main__':
+  pyvirtualdisplay.Display(visible=0, size=(1400, 900)).start()
   tf.compat.v1.app.run(main)

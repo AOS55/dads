@@ -30,4 +30,3 @@ echo This job runs on the following machines:
 echo "${SLURM_JOB_NODELIST}"
 
 python unsupervised_skill_learning/dads_OOP.py --logdir=log_dir --flagfile=configs/bipedal_inter_custom_offpolicy.txt
-
