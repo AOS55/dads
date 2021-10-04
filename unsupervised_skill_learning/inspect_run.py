@@ -15,3 +15,5 @@ if __name__ == '__main__':
   ea_pairs, max_poet_iters = get_poet_vals()
   print(len(ea_pairs.pairs))
   print(len(ea_pairs.archived_pairs))
+  print(max_poet_iters)
+
