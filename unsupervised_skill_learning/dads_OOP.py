@@ -379,6 +379,12 @@ def get_env_stats(config, eval_dir, log_dir, env_config, env_name='default_env')
   return stats, agent
 
 
+def get_per_skill_videos(config, eval_dir, log_dir, env_config, env_name='default_env'):
+  agent = get_eval_agent(config, log_dir, env_config, env_name=env_name)
+  agent.get_per_skill_video(vid_name='skill', eval_dir=eval_dir)
+  return
+
+
 def get_one_hot_env_stats(config, eval_dir, log_dir, env_config, env_name='default_env'):
   """
   Get a group of rollouts on an environment over each skill
@@ -1988,8 +1994,45 @@ class DADS:
             close_environment=True if eval_idx == per_skill_evaluations - 1 else False)
           # traj_samples = np.vstack((traj_samples, eval_trajectory))
           one_hot_eval_samples[idx, eval_idx] = eval_trajectory
-      preset_skill[idx] = 0
+      preset_skill[idx] = 0  # unset the one-hot vector
     return one_hot_eval_samples
+
+  def get_per_skill_video(self, vid_name, eval_dir):
+    eval_policy = self.eval_policy
+    dynamics = self.agent.skill_dynamics
+    self.skill_type = 'discrete_uniform'
+    per_skill_evaluations = 1
+    preset_skill = np.zeros(self.num_skills, dtype=int)
+    predict_trajectory_steps = 0
+    for idx in range(self.num_skills):
+      preset_skill[idx] = 1
+      eval_env = get_environment(env_name=self.env_name, env_config=self.env_config)
+      eval_env = wrap_env(
+        skill_wrapper.SkillWrapper(
+          eval_env,
+          num_latent_skills=self.num_skills,
+          skill_type=self.skill_type,
+          preset_skill=preset_skill,
+          min_steps_before_resample=self.min_steps_before_resample,
+          resample_prob=self.resample_prob),
+        max_episode_steps=self.max_env_steps
+        )
+      if vid_name is not None:
+        full_vid_name = vid_name + '_' + str(idx)
+        eval_env = video_wrapper.VideoWrapper(eval_env, base_path=eval_dir, base_name=full_vid_name)
+        print(f'video name is: {full_vid_name}')
+      with self.sess.as_default():
+        for eval_idx in range(per_skill_evaluations):
+          eval_trajectory = self.run_on_env(
+            eval_env,
+            eval_policy,
+            dynamics=dynamics,
+            predict_trajectory_steps=predict_trajectory_steps,
+            return_data=True,
+            close_environment=True if eval_idx == per_skill_evaluations - 1 else False)
+      preset_skill[idx] = 0  # unset the one-hot vector
+    return
+
 
   @staticmethod
   def _normal_projection_net(action_spec, init_means_output_factor=0.1):
@@ -2236,18 +2279,6 @@ class POET:
 
 def main(_):
 
-  stub_env_config = Env_config(
-        name='stub_env',
-        ground_roughness=0,
-        pit_gap=[],
-        stump_width=[],
-        stump_height=[],
-        stump_float=[],
-        stair_height=[],
-        stair_width=[],
-        stair_steps=[]
-      )
-
   # Setup tf values
   tf.compat.v1.enable_resource_variables()
   tf.compat.v1.disable_eager_execution()
@@ -2266,6 +2297,18 @@ def main(_):
     stump_width=[],
     stump_height=[],
     stump_float=[],
+    stair_height=[],
+    stair_width=[],
+    stair_steps=[]
+  )
+
+  hard_env_config = Env_config(
+    name='hard_config',
+    ground_roughness=5.0,
+    pit_gap=[0.5, 0.5],
+    stump_width=[1, 2],
+    stump_height=[0.2, 0.6],
+    stump_float=[0.5, 0.6],
     stair_height=[],
     stair_width=[],
     stair_steps=[]
@@ -2344,7 +2387,7 @@ def main(_):
   }
 
   run_type = 'eval'
-  eval_types = ['diversity']
+  eval_types = ['videos']
 
   if run_type == 'train':
     poet = POET(init_dads_config,
@@ -2364,6 +2407,10 @@ def main(_):
       print(f'Poet log file not found @ {poet_log_file}')
     cwd = os.getcwd()
     eval_dir = os.path.join(cwd, 'eval_dir')
+    if 'videos' in eval_types:
+      get_per_skill_videos(config=init_dads_config, eval_dir=eval_dir, log_dir=log_dir, env_config=init_env_config,
+                           env_name='default_env')
+
     if 'predictability' in eval_types:
       env_stats, agent = get_env_stats(config=init_dads_config, eval_dir=eval_dir, log_dir=log_dir,
                                        env_config=init_env_config, env_name='default_env')
