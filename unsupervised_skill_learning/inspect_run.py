@@ -16,4 +16,6 @@ if __name__ == '__main__':
   print(len(ea_pairs.pairs))
   print(len(ea_pairs.archived_pairs))
   print(max_poet_iters)
+  print(f'Active Envs: {[ea_pairs.pairs[idx].env_name for idx in range(len(ea_pairs.pairs))]}')
+  print(f'Archived Envs: {[ea_pairs.archived_pairs[idx].env_name for idx in range(len(ea_pairs.archived_pairs))]}')
 
