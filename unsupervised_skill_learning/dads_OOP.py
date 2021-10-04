@@ -2304,11 +2304,11 @@ def main(_):
 
   hard_env_config = Env_config(
     name='hard_config',
-    ground_roughness=5.0,
+    ground_roughness=8.0,
     pit_gap=[0.5, 0.5],
-    stump_width=[1, 2],
+    stump_width=[0.1, 1],
     stump_height=[0.2, 0.6],
-    stump_float=[0.5, 0.6],
+    stump_float=[],
     stair_height=[],
     stair_width=[],
     stair_steps=[]
@@ -2317,7 +2317,7 @@ def main(_):
   # Setup initial dads configuration, must be done in main due to use of flags
   init_dads_config = {
     'env_name': FLAGS.environment,
-    'env_config': init_env_config,
+    'env_config': hard_env_config,
     'log_dir': model_dir,
     'num_skills': FLAGS.num_skills,
     'skill_type': FLAGS.skill_type,
@@ -2408,12 +2408,12 @@ def main(_):
     cwd = os.getcwd()
     eval_dir = os.path.join(cwd, 'eval_dir')
     if 'videos' in eval_types:
-      get_per_skill_videos(config=init_dads_config, eval_dir=eval_dir, log_dir=log_dir, env_config=init_env_config,
+      get_per_skill_videos(config=init_dads_config, eval_dir=eval_dir, log_dir=log_dir, env_config=hard_env_config,
                            env_name='default_env')
 
     if 'predictability' in eval_types:
       env_stats, agent = get_env_stats(config=init_dads_config, eval_dir=eval_dir, log_dir=log_dir,
-                                       env_config=init_env_config, env_name='default_env')
+                                       env_config=hard_env_config, env_name='default_env')
       trajectory = [env_stats[idx][0] for idx in range(len(env_stats))]
       actions = [env_stats[idx][1] for idx in range(len(env_stats))]
       logp = [env_stats[idx][2] for idx in range(len(env_stats))]
