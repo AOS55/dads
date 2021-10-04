@@ -1960,7 +1960,7 @@ class DADS:
     eval_policy = self.eval_policy
     dynamics = self.agent.skill_dynamics
     self.skill_type = 'discrete_uniform'
-    per_skill_evaluations = 2
+    per_skill_evaluations = 100
     preset_skill = np.zeros(self.num_skills, dtype=int)
     predict_trajectory_steps = 0
     one_hot_eval_samples = np.empty((self.num_skills, per_skill_evaluations), dtype=object)
@@ -2404,6 +2404,19 @@ def main(_):
       # 2. Compare KL divergence of policy rollout of each on a range of off-policy environments
       # 3. Use this as a statistic and do regular hypothesis test for level of significance given number of samples
       # 4. Accept or reject the hypothesis
+      hard_env_config = Env_config(
+        name='hard_config',
+        ground_roughness=5.0,
+        pit_gap=[0.5, 0.5],
+        stump_width=[1, 2],
+        stump_height=[0.2, 0.6],
+        stump_float=[0.5, 0.6],
+        stair_height=[],
+        stair_width=[],
+        stair_steps=[]
+      )
+      init_dads_config['env_config'] = hard_env_config
+
       pass
     if 'initialization' in eval_types:
       # Look at procedure for initialization of ROEL when deployed with reward on unseen environment with supervision

@@ -133,10 +133,12 @@ def reward_diversity_estimation(one_hot_array):
     sample_df = sample_df.T
     z_list.append(sample_df.sum())
     z_col.append(z_num)
+  z_df = pd.DataFrame(data=z_list)
+  z_df = z_df.rename_axis(index='z-skill', columns='sample_num')
   # print(z_list[1].mean())
-  z_mean_list = [z_list[idx].mean() for idx in range(len(z_list))]
-  z_var_list = [z_list[idx].var() for idx in range(len(z_list))]
-  z_df = pd.DataFrame(data=list(zip(z_mean_list, z_var_list)), columns=['mean', 'var'])
+  # z_mean_list = [z_list[idx].mean() for idx in range(len(z_list))]
+  # z_var_list = [z_list[idx].var() for idx in range(len(z_list))]
+  # z_df = pd.DataFrame(data=list(zip(z_mean_list, z_var_list)), columns=['mean', 'var'])
   return z_df
 
 
