@@ -979,7 +979,7 @@ class DADS:
 
   def initialize_policies(self, collect_policy_type):
     """
-    Initialize policies to use withe DAD
+    Initialize policies to use with DAD
 
     :param collect_policy_type: 'default' or 'ou_noise' (Ornstein–Uhlenbeck)
     :return: eval, collection & relabel policies
@@ -1094,7 +1094,7 @@ class DADS:
 
     def _process_episode_data(ep_buffer, cur_data):
       """
-      Process episode dat and only keep the last 100 data points of the buffer
+      Process episode data and only keep the last 100 data points of the buffer
 
       :param ep_buffer: current episode buffer
       :param cur_data: new data collected
@@ -1555,7 +1555,7 @@ class DADS:
         eval_env = video_wrapper.VideoWrapper(eval_env, base_path=eval_dir, base_name=full_vid_name)
 
       mean_reward = 0.
-      per_skill_evaluations = 1
+      per_skill_evaluations = 100
       predict_trajectory_steps = 0
 
       with self.sess.as_default():
