@@ -2143,6 +2143,61 @@ class POET:
         pkl.dump([self.ea_pairs, self.max_poet_iters - poet_step], f)
 
 
+class DOMAIN_RANDOM:
+  """Generate Random Domains at each training step"""
+  def __init__(self,
+               init_agent_config,
+               log_dir,
+               max_dr_steps,
+               master_seed):
+    """
+    DOMAIN_RANDOM constructor
+
+    :param initial_agent_config: initial agent config to use for training
+    :param log_dir: directory to save logs into
+    """
+    self.agent_config = init_agent_config
+    self.log_dir = log_dir
+    self.max_dr_steps = max_dr_steps
+    dr_log_file = os.path.join(self.log_dir, 'dr_vals.pkl')
+    if os.path.isfile(dr_log_file):
+      with open(dr_log_file, 'rb') as f:
+        self.ea_pair = pkl.load(f)
+    else:
+      self.ea_pair = EnvPairs(init_config=init_agent_config, log_dir=log_dir)
+    self.rs = np.random.RandomState(master_seed)
+
+  def randomize_environment(self, env_config):
+    """
+    Randomize environment config
+    """
+
+    ground_roughness = self.rs
+
+    Env_config(name='dr_env',
+     ground_roughness=ground_roughness,
+     pit_gap=pit_gap,
+     stump_width=stump_width,
+     stump_height=stump_height,
+     stump_float=stump_float,
+     stair_height=0,
+     stair_width=0,
+     stair_steps=0
+     )
+
+  def run(self):
+    """
+    Run main DR loop, entry point of DR after construction
+    """
+    dr_log_file = os.path.join(self.log_dir, 'dr_vals.pkl')
+    if os.path.isfile(dr_log_file):
+      with open(dr_log_file, 'rb') as f:
+        self.ea_pair, self.dr_steps = pkl.load(f)
+    
+    for self.dr_step in range(self.max_dr_steps):
+      
+      
+
 def main(_):
 
   stub_env_config = Env_config(
