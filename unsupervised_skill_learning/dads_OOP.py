@@ -2194,7 +2194,7 @@ class DomainRandom:
       height = [bounds.min(), bounds.max()]
       if height[1] - height[0] <= 0.2:
         if height[0] >= 0.3:
-          height[0] = height - 0.2
+          height[0] = height[0] - 0.2
         else:
          height[1] = height[1] + 0.2
       return height
@@ -2211,7 +2211,7 @@ class DomainRandom:
       stair_height=[],
       stair_width=[],
       stair_steps=[])
-
+    print(env_config)
     return env_config
 
   def run(self):
@@ -2227,6 +2227,7 @@ class DomainRandom:
       env_config = self.get_random_env()
       current_pair = self.ea_pair.update_ea_pair(current_pair, 'parent_name', env_config)
       self.ea_pair.train_agent(current_pair, 5)
+      print(self.ea_pair.config['num_epochs'])
       self.dr_steps += 5
       if self.dr_steps % 40:
         with open(dr_log_file, 'wb') as f:
@@ -2357,7 +2358,7 @@ def main(_):
   if run_type == 'train_domain_random':
     dr = DomainRandom(init_dads_config,
                       log_dir,
-                      max_dr_steps=1000,
+                      max_dr_steps=10000,
                       master_seed=42)
     dr.run()
     print('Domain randomization run finished')
