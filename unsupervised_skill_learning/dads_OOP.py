@@ -2143,7 +2143,7 @@ class POET:
         pkl.dump([self.ea_pairs, self.max_poet_iters - poet_step], f)
 
 
-class DOMAIN_RANDOM:
+class DomainRandom:
   """Generate Random Domains at each training step"""
   def __init__(self,
                init_agent_config,
@@ -2153,13 +2153,14 @@ class DOMAIN_RANDOM:
     """
     DOMAIN_RANDOM constructor
 
-    :param initial_agent_config: initial agent config to use for training
+    :param init_agent_config: initial agent config to use for training
     :param log_dir: directory to save logs into
     """
     self.agent_config = init_agent_config
     self.log_dir = log_dir
     self.max_dr_steps = max_dr_steps
     dr_log_file = os.path.join(self.log_dir, 'dr_vals.pkl')
+    self.dr_steps = 0
     if os.path.isfile(dr_log_file):
       with open(dr_log_file, 'rb') as f:
         self.ea_pair = pkl.load(f)
@@ -2167,23 +2168,51 @@ class DOMAIN_RANDOM:
       self.ea_pair = EnvPairs(init_config=init_agent_config, log_dir=log_dir)
     self.rs = np.random.RandomState(master_seed)
 
-  def randomize_environment(self, env_config):
+  def get_random_env(self):
     """
     Randomize environment config
     """
 
-    ground_roughness = self.rs
+    ground_roughness = self.rs.uniform(0.0, 1.0)
+    def _pit_gap():
+      bounds = self.rs.uniform(0.0, 8.0, 2)
+      bounds = bounds.round(1)
+      gap = [bounds.min(), bounds.max()]
+      if gap[1] - gap[0] <= 0.4:
+        if gap[0] >= 0.4:
+          gap[0] = gap[0] - 0.4
+        else:
+          gap[1] = gap[1] + 0.4
+      return gap
 
-    Env_config(name='dr_env',
-     ground_roughness=ground_roughness,
-     pit_gap=pit_gap,
-     stump_width=stump_width,
-     stump_height=stump_height,
-     stump_float=stump_float,
-     stair_height=0,
-     stair_width=0,
-     stair_steps=0
-     )
+    pit_gap = _pit_gap()
+    stump_width = [1, 2]
+
+    def _stump_height():
+      bounds = self.rs.uniform(0.1, 5.0, 2)
+      bounds = bounds.round(1)
+      height = [bounds.min(), bounds.max()]
+      if height[1] - height[0] <= 0.2:
+        if height[0] >= 0.3:
+          height[0] = height - 0.2
+        else:
+         height[1] = height[1] + 0.2
+      return height
+
+    stump_height = _stump_height()
+    stump_float = [0.1, 1.0]
+
+    env_config = Env_config(name='dr_env',
+      ground_roughness=ground_roughness,
+      pit_gap=pit_gap,
+      stump_width=stump_width,
+      stump_height=stump_height,
+      stump_float=stump_float,
+      stair_height=[],
+      stair_width=[],
+      stair_steps=[])
+
+    return env_config
 
   def run(self):
     """
@@ -2193,10 +2222,16 @@ class DOMAIN_RANDOM:
     if os.path.isfile(dr_log_file):
       with open(dr_log_file, 'rb') as f:
         self.ea_pair, self.dr_steps = pkl.load(f)
-    
-    for self.dr_step in range(self.max_dr_steps):
-      
-      
+    current_pair = self.ea_pair.pairs[0]
+    while self.dr_steps < self.max_dr_steps:
+      env_config = self.get_random_env()
+      current_pair = self.ea_pair.update_ea_pair(current_pair, 'parent_name', env_config)
+      self.ea_pair.train_agent(current_pair, 5)
+      self.dr_steps += 5
+      if self.dr_steps % 40:
+        with open(dr_log_file, 'wb') as f:
+          pkl.dump([self.ea_pair, self.dr_steps], f)
+
 
 def main(_):
 
@@ -2307,7 +2342,7 @@ def main(_):
     'max_children': 3
   }
 
-  run_type = 'train'
+  run_type = 'train_domain_random'
   eval_types = ['diversity']
 
   if run_type == 'train':
@@ -2318,6 +2353,14 @@ def main(_):
                 reproducer_config=reproducer_config)
     poet.run()
     print('Finished running POET!')
+
+  if run_type == 'train_domain_random':
+    dr = DomainRandom(init_dads_config,
+                      log_dir,
+                      max_dr_steps=1000,
+                      master_seed=42)
+    dr.run()
+    print('Domain randomization run finished')
 
 
 if __name__ == '__main__':
